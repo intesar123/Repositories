@@ -1,5 +1,7 @@
 ﻿using MySql.Data.MySqlClient;
+using Oracle.ManagedDataAccess.Client;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Configuration;
 using System.Data;
@@ -9,6 +11,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
+
 namespace Repositories
 {
     public class Repository
@@ -16,13 +19,20 @@ namespace Repositories
         //public MySqlConnection mysqlcon;
         //public SqlConnection mssqlcon;
         #region Database Section
-        public static bool ismssql = Convert.ToBoolean(ConfigurationManager.AppSettings["ismssql"]);
-        private static SqlConnection getMSSqlConnection(string ConnName="")
+        public static int ismssql = Convert.ToInt32(ConfigurationManager.AppSettings["DBTYPE"]);
+        private static SqlConnection getMSSqlConnection(string ConnName = "")
         {
-         
+
             SqlConnection con = new SqlConnection(Repository.getConnectionString(ConnName));
             return con;
         }
+        private static OracleConnection getOracleConnection(string ConnName = "")
+        {
+
+            OracleConnection con = new OracleConnection(Repository.getConnectionString(ConnName));
+            return con;
+        }
+
         private static MySqlConnection getMySqlConnection(string ConnName = "")
         {
             string constr = ConfigurationManager.ConnectionStrings["DefaultConnection"].ConnectionString;
@@ -34,13 +44,21 @@ namespace Repositories
             DbConnection conn = null;
             try
             {
-                if(ismssql)
+                if (ismssql == 1)
                 {
                     conn = Repository.getMSSqlConnection();
                 }
+                else if (ismssql == 2)
+                {
+                    conn = Repository.getMySqlConnection();
+                }
+                else if (ismssql == 3)
+                {
+                    conn = Repository.getOracleConnection();
+                }
                 else
                 {
-                 conn=Repository.getMySqlConnection();
+                    throw new Exception("Please set value for the key DBTYPE in web.config appsetting section");
                 }
             }
             catch (Exception)
@@ -66,6 +84,73 @@ namespace Repositories
             return constr;
         }
 
+        public static string getUpdateQuery(ArrayList arrlst)
+        {
+            string retstr = string.Empty;
+            try
+            {
+                foreach(string str in arrlst)
+                {
+                    if(ismssql==1)
+                    {
+                         
+                    }
+                    else if(ismssql==2)
+                    {
+
+                    }
+                    else if(ismssql == 3)
+                    {
+
+                    }
+                    else
+                    {
+                        throw new Exception("Please set value for the key DBTYPE in web.config appsetting section");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+
+                throw ex;
+            }
+            return retstr;
+
+        }
+        public static string getCreateQuery(ArrayList arrlst)
+        {
+            string retstr = string.Empty;
+            try
+            {
+                foreach (string str in arrlst)
+                {
+                    if (ismssql == 1)
+                    {
+
+                    }
+                    else if (ismssql == 2)
+                    {
+
+                    }
+                    else if (ismssql == 3)
+                    {
+
+                    }
+                    else
+                    {
+                        throw new Exception("Please set value for the key DBTYPE in web.config appsetting section");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+
+                throw ex;
+            }
+            return retstr;
+
+        }
+
         public static int getStrLen(string str)
         {
             int retval = 0;
@@ -79,7 +164,7 @@ namespace Repositories
             }
             return retval;
         }
-        public static DataTable getTable(string query,string TableName="", DbConnection Conn = null,DbTransaction Trans=null,string ConnName="")
+        public static DataTable getTable(string query, string TableName = "", DbConnection Conn = null, DbTransaction Trans = null, string ConnName = "")
         {
             DataTable dt = new DataTable(TableName);
             try
@@ -88,9 +173,9 @@ namespace Repositories
                 {
                     Conn = Repository.getConnection(ConnName);
                 }
-                if (ismssql)
+                if (ismssql == 1)
                 {
-                   
+
                     using (SqlCommand cmd = new SqlCommand(query))
                     {
                         using (Conn)
@@ -108,7 +193,7 @@ namespace Repositories
                         }
                     }
                 }
-                else
+                else if (ismssql == 2)
                 {
                     using (MySqlCommand cmd = new MySqlCommand(query))
                     {
@@ -127,13 +212,33 @@ namespace Repositories
                         }
                     }
                 }
+                else if (ismssql == 3)
+                {
+                    using (OracleCommand cmd = new OracleCommand(query))
+                    {
+                        using (Conn)
+                        {
+                            cmd.Connection = (OracleConnection)Conn;
+                            cmd.Transaction = (OracleTransaction)Trans;
+                            using (OracleDataAdapter sda = new OracleDataAdapter())
+                            {
+                                sda.SelectCommand = cmd;
+                                using (dt)
+                                {
+                                    sda.Fill(dt);
+                                }
+                            }
+                        }
+                    }
+                }
+
             }
             catch (Exception)
             {
             }
             finally
             {
-                if(Conn!=null && Conn.State==ConnectionState.Open)
+                if (Conn != null && Conn.State == ConnectionState.Open)
                 {
                     Conn.Close();
                 }
