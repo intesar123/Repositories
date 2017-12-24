@@ -97,53 +97,116 @@ namespace Repositories
         {
             string retstr = "";
             string schemastr = string.Empty;
-
+            string coltype = string.Empty;
+            string nullstr = string.Empty;
+            bool isnewcol = true;
+            string collstr = string.Empty;
+            Dictionary<string, bool> colltoaddmod = new Dictionary<string, bool>();
             DataTable dtschema = getTableSchema(tablename, conn, trans);
 
             if (ismssql == 1)
             {
-                retstr = "Alter  " + tablename.ToUpper();
+                retstr = "";
+                for (int i = 0; i < arrlst.Count; i++)
+                {
+                    isnewcol = true;
+                    foreach (DataRow dr in dtschema.Rows)
+                    {
+                        schemastr = Convert.ToString(dr["COLUMN_NAME"]).Trim().ToUpper();
+                        if (Convert.ToInt32(dr["NULLABLE"]) == 1)
+                        {
+                            nullstr = " NULL";
+                        }
+                        if (Convert.ToString(dr["TYPE_NAME"]).Trim().ToUpper().Contains("INT"))
+                        {
+                            coltype = " INT";
+                        }
+                        else if (Convert.ToString(dr["TYPE_NAME"]).Trim().ToUpper().Contains("VARCHAR"))
+                        {
+                            coltype = " " + Convert.ToString(dr["TYPE_NAME"]).Trim().ToUpper()+"("+ Convert.ToString(dr["LENGTH"]).Trim() + ")";
+                        }
+                        else
+                        {
+                            coltype = " " + Convert.ToString(dr["TYPE_NAME"]).Trim().ToUpper();
+                        }
+                        if (Convert.ToString(arrlst[i]).ToUpper().Contains("BLOB"))
+                        {
+                            collstr = Convert.ToString(arrlst[i]).ToUpper().Replace("BLOB","BINARY");
+                            arrlst[i] = collstr;
+                        }
+                        else if (Convert.ToString(arrlst[i]).ToUpper().Contains("BOOLEAN"))
+                        {
+                            collstr = Convert.ToString(arrlst[i]).ToUpper().Replace("BOOLEAN", "BIT");
+                            arrlst[i] = collstr;
+                        }
+                        else if (Convert.ToString(arrlst[i]).ToUpper().Contains("BOOL"))
+                        {
+                            collstr = Convert.ToString(arrlst[i]).ToUpper().Replace("BOOL", "BIT");
+                            arrlst[i] = collstr;
+                        }
+                        else if (Convert.ToString(arrlst[i]).ToUpper().Contains("DOUBLE"))
+                        {
+                            collstr = Convert.ToString(arrlst[i]).ToUpper().Replace("DOUBLE", "BIT");
+                            arrlst[i] = collstr;
+                        }
+                        if (schemastr.Length > 0)
+                        {
+
+                            if (Convert.ToString(arrlst[i]).ToUpper().Contains(schemastr))
+                            {
+                                if (!Convert.ToString(arrlst[i]).ToUpper().Contains(schemastr + coltype))
+                                {
+                                    colltoaddmod.Add(Convert.ToString(arrlst[i]).ToUpper(), false);
+                                }
+                                isnewcol = false;
+                                break;
+                            }
+                        }////
+                    }
+                    if (isnewcol)
+                    {
+                        colltoaddmod.Add(Convert.ToString(arrlst[i]).ToUpper(), true);
+                    }
+                }
             }
             else if (ismssql == 2)
             {
                 retstr = "ALTER TABLE  " + tablename.ToUpper();
-                foreach(DataRow dr in dtschema.Rows)
+                for (int i = 0; i < arrlst.Count; i++)
                 {
+                    isnewcol = true;
+                    foreach (DataRow dr in dtschema.Rows)
+                    {
+                        schemastr = Convert.ToString(dr["Field"]).Trim().ToUpper();
+                        if (String.Compare(Convert.ToString(dr["Null"]).Trim().ToUpper(), "YES") == 0)
+                        {
+                            nullstr = " NULL";
+                        }
+                        if (Convert.ToString(dr["Type"]).Trim().ToUpper().Contains("INT"))
+                        {
+                            coltype = " INT";
+                        }
+                        else
+                        {
+                            coltype = " " + Convert.ToString(dr["Type"]).Trim().ToUpper();
+                        }
+                        if (schemastr.Length > 0)
+                        {
 
-                    if(Convert.ToString(dr["Type"]).Trim().ToUpper().Contains("INT"))
-                    {
-                        schemastr = Convert.ToString(dr["Field"]).Trim().ToUpper()+ "  INT";
-                        if (String.Compare(Convert.ToString(dr["Null"]).Trim().ToUpper(), "YES") == 0)
-                        {
-                            schemastr += " NULL";
-                        }
-                        
-                    }
-                    else if (Convert.ToString(dr["Type"]).Trim().ToUpper().Contains("VARCHAR"))
-                    {
-                        schemastr = Convert.ToString(dr["Field"]).Trim().ToUpper() + " " + Convert.ToString(dr["Type"]).Trim().ToUpper();
-                        if (String.Compare(Convert.ToString(dr["Null"]).Trim().ToUpper(), "YES") == 0)
-                        {
-                            schemastr += " NULL";
-                        }
-                    }
-                    else
-                    {
-                        schemastr = Convert.ToString(dr["Field"]).Trim().ToUpper() + " " + Convert.ToString(dr["Type"]).Trim().ToUpper();
-                        if (String.Compare(Convert.ToString(dr["Null"]).Trim().ToUpper(), "YES") == 0)
-                        {
-                            schemastr += " NULL";
-                        }
-                    }
-                    if (schemastr.Length>0)
-                    {
-                       for(int i=0;i<arrlst.Count;i++)
-                        {
-                            if(Convert.ToString(arrlst[i]).ToUpper().Contains(schemastr))
+                            if (Convert.ToString(arrlst[i]).ToUpper().Contains(schemastr))
                             {
-                                arrlst.RemoveAt(i);
+                                if (!Convert.ToString(arrlst[i]).ToUpper().Contains(schemastr + coltype))
+                                {
+                                    colltoaddmod.Add(Convert.ToString(arrlst[i]).ToUpper(), false);
+                                }
+                                isnewcol = false;
+                                break;
                             }
-                        }
+                        }////
+                    }
+                    if(isnewcol)
+                    {
+                        colltoaddmod.Add(Convert.ToString(arrlst[i]).ToUpper(), true);
                     }
                 }
             }
@@ -152,25 +215,59 @@ namespace Repositories
                 retstr = "Alter  " + tablename.ToUpper();
             }
             string colstr = string.Empty;
-            string[] strarr = null;
             try
             {
                 int i = 1;
-                foreach (string str in arrlst)
+                foreach (KeyValuePair<string, bool> col in colltoaddmod)
                 {
-                    strarr = str.Split(' ');
                     if (ismssql == 1)
                     {
-
+                        if (col.Value == true)
+                        {
+                            colstr = "ALTER TABLE  " + tablename.ToUpper()+"  ADD " + col.Key+";";
+                        }
+                        else
+                        {
+                            if (col.Key.ToUpper().Contains("PRIMARY KEY"))
+                            {
+                                colstr = colstr.ToUpper().Replace("PRIMARY KEY", "");
+                                colstr = "ALTER TABLE  " + tablename.ToUpper()+"  ALTER COLUMN " + colstr+";";
+                            }
+                            else
+                            {
+                                colstr = "ALTER TABLE  " + tablename.ToUpper()+"  ALTER COLUMN " + col.Key+";";
+                            }
+                        }
+                        retstr += colstr;
                     }
                     else if (ismssql == 2)
                     {
                         //colstr = " "+strarr[0]+" "+ str;
-                        colstr = "  MODIFY COLUMN " + str;
-                        if (str.ToUpper().Contains("PRIMARY KEY"))
+                        if(col.Value==true)
                         {
-                            colstr = colstr.ToUpper().Replace("PRIMARY KEY","");
+                            colstr = "  ADD COLUMN " + col.Key;
                         }
+                        else
+                        {
+                            if (col.Key.ToUpper().Contains("PRIMARY KEY"))
+                            {
+                                colstr = colstr.ToUpper().Replace("PRIMARY KEY", "");
+                                colstr = "  MODIFY COLUMN " + colstr;
+                            }
+                            else
+                            {
+                                colstr = "  MODIFY COLUMN " + col.Key;
+                            }
+                        }
+                        if (colltoaddmod.Count == i)
+                        {
+                            retstr += colstr;
+                        }
+                        else
+                        {
+                            retstr += colstr + ",";
+                        }
+
                     }
                     else if (ismssql == 3)
                     {
@@ -181,15 +278,7 @@ namespace Repositories
                         throw new Exception("Please set value for the key DBTYPE in web.config appsetting section");
                     }
                     ///////////////////////////////////////
-                    if (arrlst.Count == i)
-                    {
-                        retstr += colstr;
-                    }
-                    else
-                    {
-                        retstr += colstr + ",";
-                    }
-
+                   
                     i++;
                 }
             }
@@ -217,7 +306,22 @@ namespace Repositories
                     strarr = str.Split(' ');
                     if (ismssql == 1)
                     {
-
+                        if (str.ToUpper().Contains("BLOB"))
+                        {
+                            arrlst[i-1] = str.ToUpper().Replace("BLOB", "BINARY");
+                        }
+                        else if (str.ToUpper().Contains("BOOLEAN"))
+                        {
+                            arrlst[i - 1] = str.ToUpper().Replace("BOOLEAN", "BIT");   
+                        }
+                        else if (str.ToUpper().Contains("BOOL"))
+                        {
+                            arrlst[i - 1] = str.ToUpper().Replace("BOOL", "BIT");
+                        }
+                        else if (str.ToUpper().Contains("DOUBLE"))
+                        {
+                            arrlst[i - 1] = str.ToUpper().Replace("DOUBLE", "BIT");
+                        }
                     }
                     else if (ismssql == 2)
                     {
@@ -422,7 +526,7 @@ namespace Repositories
             DataTable dt = new DataTable();
             if (ismssql == 1)
             {
-                using (SqlCommand cmd = new SqlCommand("sp_help " + tablename.ToUpper()))
+                using (SqlCommand cmd = new SqlCommand("sp_columns " + tablename.ToUpper()))
                 {
                     cmd.Connection = (SqlConnection)conn;
                     cmd.Transaction = (SqlTransaction)trans;
