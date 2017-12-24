@@ -19,10 +19,10 @@ namespace Repositories
         //public MySqlConnection mysqlcon;
         //public SqlConnection mssqlcon;
         #region Database Section
-        public static int ismssql = Convert.ToInt32(ConfigurationManager.AppSettings["DBTYPE"]);
+        public static int ismssql = Convert.ToInt32(ConfigurationManager.AppSettings["DBTYPE"]);//1-MSSQL 2-MYSQL 3-ORACLE
         public static string dbname = string.Empty;
         public static string dbserver = string.Empty;
-        
+
         private static SqlConnection getMSSqlConnection(string ConnName = "")
         {
 
@@ -93,7 +93,7 @@ namespace Repositories
             return constr;
         }
 
-        public static string getUpdateQuery(ArrayList arrlst,string tablename,DbConnection conn,DbTransaction trans)
+        public static string getUpdateQuery(ArrayList arrlst, string tablename, DbConnection conn, DbTransaction trans)
         {
             string retstr = "";
             string schemastr = string.Empty;
@@ -123,7 +123,7 @@ namespace Repositories
                         }
                         else if (Convert.ToString(dr["TYPE_NAME"]).Trim().ToUpper().Contains("VARCHAR"))
                         {
-                            coltype = " " + Convert.ToString(dr["TYPE_NAME"]).Trim().ToUpper()+"("+ Convert.ToString(dr["LENGTH"]).Trim() + ")";
+                            coltype = " " + Convert.ToString(dr["TYPE_NAME"]).Trim().ToUpper() + "(" + Convert.ToString(dr["LENGTH"]).Trim() + ")";
                         }
                         else
                         {
@@ -131,7 +131,7 @@ namespace Repositories
                         }
                         if (Convert.ToString(arrlst[i]).ToUpper().Contains("BLOB"))
                         {
-                            collstr = Convert.ToString(arrlst[i]).ToUpper().Replace("BLOB","BINARY");
+                            collstr = Convert.ToString(arrlst[i]).ToUpper().Replace("BLOB", "BINARY");
                             arrlst[i] = collstr;
                         }
                         else if (Convert.ToString(arrlst[i]).ToUpper().Contains("BOOLEAN"))
@@ -152,7 +152,7 @@ namespace Repositories
                         if (schemastr.Length > 0)
                         {
 
-                            if (Convert.ToString(arrlst[i]).ToUpper().Contains(schemastr))
+                            if (string.Compare(Convert.ToString(arrlst[i]).ToUpper().Split()[0], schemastr) == 0)
                             {
                                 if (!Convert.ToString(arrlst[i]).ToUpper().Contains(schemastr + coltype))
                                 {
@@ -204,7 +204,7 @@ namespace Repositories
                             }
                         }////
                     }
-                    if(isnewcol)
+                    if (isnewcol)
                     {
                         colltoaddmod.Add(Convert.ToString(arrlst[i]).ToUpper(), true);
                     }
@@ -224,18 +224,18 @@ namespace Repositories
                     {
                         if (col.Value == true)
                         {
-                            colstr = "ALTER TABLE  " + tablename.ToUpper()+"  ADD " + col.Key+";";
+                            colstr = "ALTER TABLE  " + tablename.ToUpper() + "  ADD " + col.Key + ";";
                         }
                         else
                         {
                             if (col.Key.ToUpper().Contains("PRIMARY KEY"))
                             {
                                 colstr = colstr.ToUpper().Replace("PRIMARY KEY", "");
-                                colstr = "ALTER TABLE  " + tablename.ToUpper()+"  ALTER COLUMN " + colstr+";";
+                                colstr = "ALTER TABLE  " + tablename.ToUpper() + "  ALTER COLUMN " + colstr + ";";
                             }
                             else
                             {
-                                colstr = "ALTER TABLE  " + tablename.ToUpper()+"  ALTER COLUMN " + col.Key+";";
+                                colstr = "ALTER TABLE  " + tablename.ToUpper() + "  ALTER COLUMN " + col.Key + ";";
                             }
                         }
                         retstr += colstr;
@@ -243,7 +243,7 @@ namespace Repositories
                     else if (ismssql == 2)
                     {
                         //colstr = " "+strarr[0]+" "+ str;
-                        if(col.Value==true)
+                        if (col.Value == true)
                         {
                             colstr = "  ADD COLUMN " + col.Key;
                         }
@@ -278,7 +278,7 @@ namespace Repositories
                         throw new Exception("Please set value for the key DBTYPE in web.config appsetting section");
                     }
                     ///////////////////////////////////////
-                   
+
                     i++;
                 }
             }
@@ -287,7 +287,7 @@ namespace Repositories
 
                 throw ex;
             }
-            if(arrlst.Count==0)
+            if (arrlst.Count == 0)
             {
                 retstr = "";
             }
@@ -298,54 +298,97 @@ namespace Repositories
             string retstr = "Create table " + tablename.ToUpper() + "(";
 
             string[] strarr = null;
+            string colstr = string.Empty;
+            int i = 1;
             try
             {
-                int i = 1;
-                foreach (string str in arrlst)
+                if (ismssql == 1)//MSSQL
                 {
-                    strarr = str.Split(' ');
-                    if (ismssql == 1)
+                    
+                    foreach (string str in arrlst)
                     {
+                        //strarr = str.Split(' ');
                         if (str.ToUpper().Contains("BLOB"))
                         {
-                            arrlst[i-1] = str.ToUpper().Replace("BLOB", "BINARY");
+                            colstr = str.ToUpper().Replace("BLOB", "BINARY");
                         }
                         else if (str.ToUpper().Contains("BOOLEAN"))
                         {
-                            arrlst[i - 1] = str.ToUpper().Replace("BOOLEAN", "BIT");   
+                            colstr = str.ToUpper().Replace("BOOLEAN", "BIT");
                         }
                         else if (str.ToUpper().Contains("BOOL"))
                         {
-                            arrlst[i - 1] = str.ToUpper().Replace("BOOL", "BIT");
+                            colstr = str.ToUpper().Replace("BOOL", "BIT");
                         }
                         else if (str.ToUpper().Contains("DOUBLE"))
                         {
-                            arrlst[i - 1] = str.ToUpper().Replace("DOUBLE", "BIT");
+                            colstr = str.ToUpper().Replace("DOUBLE", "BIT");
                         }
+                        else
+                        {
+                            colstr = str.ToUpper();
+                        }
+
+                        ///////////////////////////////////////
+                        if (arrlst.Count == i)
+                        {
+                            retstr += colstr;
+                        }
+                        else
+                        {
+                            retstr += colstr + ",";
+                        }
+
+                        i++;
                     }
-                    else if (ismssql == 2)
+                }
+                else if (ismssql == 2)//mysql
+                {
+                    foreach (string str in arrlst)
+                    {
+                      
+                        ///////////////////////////////////////
+                        if (arrlst.Count == i)
+                        {
+                            retstr += str;
+                        }
+                        else
+                        {
+                            retstr += str + ",";
+                        }
+
+                        i++;
+                    }
+                }
+                else if (ismssql == 3)//Oracle
+                {
+                    foreach (string str in arrlst)
                     {
 
-                    }
-                    else if (ismssql == 3)
-                    {
+                        if (str.ToUpper().Contains("TEXT"))
+                        {
+                            colstr = str.ToUpper().Replace("CLOB", "BINARY");
+                        }
+                        else
+                        {
+                            colstr = str.ToUpper();
+                        }
+                        ///////////////////////////////////////
+                        if (arrlst.Count == i)
+                        {
+                            retstr += colstr;
+                        }
+                        else
+                        {
+                            retstr += colstr + ",";
+                        }
 
+                        i++;
                     }
-                    else
-                    {
-                        throw new Exception("Please set value for the key DBTYPE in web.config appsetting section");
-                    }
-                    ///////////////////////////////////////
-                    if (arrlst.Count == i)
-                    {
-                        retstr += str;
-                    }
-                    else
-                    {
-                        retstr += str + ",";
-                    }
-
-                    i++;
+                }
+                else
+                {
+                    throw new Exception("Please set value for the key DBTYPE in web.config appsetting section");
                 }
             }
             catch (Exception ex)
@@ -374,7 +417,7 @@ namespace Repositories
                         reader.Read();
                         if (reader.HasRows)
                         {
-                            if (Convert.ToInt32(reader["tname"]) >0)
+                            if (Convert.ToInt32(reader["tname"]) > 0)
                             {
                                 isnewtab = false;
                             }
@@ -396,7 +439,7 @@ namespace Repositories
                 }
                 else
                 {
-                    query = getUpdateQuery(arrlist, tablename,conn,trans);
+                    query = getUpdateQuery(arrlist, tablename, conn, trans);
                 }
                 if (query.Length > 0)
                 {
@@ -448,7 +491,7 @@ namespace Repositories
                 }
                 else
                 {
-                    query = getUpdateQuery(arrlist, tablename,conn,trans);
+                    query = getUpdateQuery(arrlist, tablename, conn, trans);
                 }
                 if (query.Length > 0)
                 {
@@ -504,7 +547,7 @@ namespace Repositories
                 }
                 else
                 {
-                    query = getUpdateQuery(arrlist, tablename,conn,trans);
+                    query = getUpdateQuery(arrlist, tablename, conn, trans);
                 }
                 if (query.Length > 0)
                 {
@@ -557,7 +600,7 @@ namespace Repositories
                     }
 
                 }
-               
+
             }
             else if (ismssql == 3)
             {
