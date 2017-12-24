@@ -20,6 +20,9 @@ namespace Repositories
         //public SqlConnection mssqlcon;
         #region Database Section
         public static int ismssql = Convert.ToInt32(ConfigurationManager.AppSettings["DBTYPE"]);
+        public static string dbname = string.Empty;
+        public static string dbserver = string.Empty;
+        
         private static SqlConnection getMSSqlConnection(string ConnName = "")
         {
 
@@ -35,12 +38,16 @@ namespace Repositories
 
         private static MySqlConnection getMySqlConnection(string ConnName = "")
         {
-            string constr = ConfigurationManager.ConnectionStrings["DefaultConnection"].ConnectionString;
+            //string constr = ConfigurationManager.ConnectionStrings["DefaultConnection"].ConnectionString;
             MySqlConnection con = new MySqlConnection(Repository.getConnectionString(ConnName));
             return con;
         }
-        public static DbConnection getConnection(string ConnName)
+        public static DbConnection getConnection(string ConnName = "")
         {
+            System.Data.SqlClient.SqlConnectionStringBuilder builder = new System.Data.SqlClient.SqlConnectionStringBuilder(getConnectionString(""));
+            dbserver = builder.DataSource;
+            dbname = builder.InitialCatalog;
+
             DbConnection conn = null;
             try
             {
@@ -60,9 +67,11 @@ namespace Repositories
                 {
                     throw new Exception("Please set value for the key DBTYPE in web.config appsetting section");
                 }
+                conn.Open();
             }
-            catch (Exception)
+            catch (Exception ex)
             {
+                throw ex;
             }
             return conn;
         }
@@ -84,22 +93,86 @@ namespace Repositories
             return constr;
         }
 
-        public static string getUpdateQuery(ArrayList arrlst)
+        public static string getUpdateQuery(ArrayList arrlst,string tablename,DbConnection conn,DbTransaction trans)
         {
-            string retstr = string.Empty;
+            string retstr = "";
+            string schemastr = string.Empty;
+
+            DataTable dtschema = getTableSchema(tablename, conn, trans);
+
+            if (ismssql == 1)
+            {
+                retstr = "Alter  " + tablename.ToUpper();
+            }
+            else if (ismssql == 2)
+            {
+                retstr = "ALTER TABLE  " + tablename.ToUpper();
+                foreach(DataRow dr in dtschema.Rows)
+                {
+
+                    if(Convert.ToString(dr["Type"]).Trim().ToUpper().Contains("INT"))
+                    {
+                        schemastr = Convert.ToString(dr["Field"]).Trim().ToUpper()+ "  INT";
+                        if (String.Compare(Convert.ToString(dr["Null"]).Trim().ToUpper(), "YES") == 0)
+                        {
+                            schemastr += " NULL";
+                        }
+                        
+                    }
+                    else if (Convert.ToString(dr["Type"]).Trim().ToUpper().Contains("VARCHAR"))
+                    {
+                        schemastr = Convert.ToString(dr["Field"]).Trim().ToUpper() + " " + Convert.ToString(dr["Type"]).Trim().ToUpper();
+                        if (String.Compare(Convert.ToString(dr["Null"]).Trim().ToUpper(), "YES") == 0)
+                        {
+                            schemastr += " NULL";
+                        }
+                    }
+                    else
+                    {
+                        schemastr = Convert.ToString(dr["Field"]).Trim().ToUpper() + " " + Convert.ToString(dr["Type"]).Trim().ToUpper();
+                        if (String.Compare(Convert.ToString(dr["Null"]).Trim().ToUpper(), "YES") == 0)
+                        {
+                            schemastr += " NULL";
+                        }
+                    }
+                    if (schemastr.Length>0)
+                    {
+                       for(int i=0;i<arrlst.Count;i++)
+                        {
+                            if(Convert.ToString(arrlst[i]).ToUpper().Contains(schemastr))
+                            {
+                                arrlst.RemoveAt(i);
+                            }
+                        }
+                    }
+                }
+            }
+            else if (ismssql == 3)
+            {
+                retstr = "Alter  " + tablename.ToUpper();
+            }
+            string colstr = string.Empty;
+            string[] strarr = null;
             try
             {
-                foreach(string str in arrlst)
+                int i = 1;
+                foreach (string str in arrlst)
                 {
-                    if(ismssql==1)
-                    {
-                         
-                    }
-                    else if(ismssql==2)
+                    strarr = str.Split(' ');
+                    if (ismssql == 1)
                     {
 
                     }
-                    else if(ismssql == 3)
+                    else if (ismssql == 2)
+                    {
+                        //colstr = " "+strarr[0]+" "+ str;
+                        colstr = "  MODIFY COLUMN " + str;
+                        if (str.ToUpper().Contains("PRIMARY KEY"))
+                        {
+                            colstr = colstr.ToUpper().Replace("PRIMARY KEY","");
+                        }
+                    }
+                    else if (ismssql == 3)
                     {
 
                     }
@@ -107,6 +180,17 @@ namespace Repositories
                     {
                         throw new Exception("Please set value for the key DBTYPE in web.config appsetting section");
                     }
+                    ///////////////////////////////////////
+                    if (arrlst.Count == i)
+                    {
+                        retstr += colstr;
+                    }
+                    else
+                    {
+                        retstr += colstr + ",";
+                    }
+
+                    i++;
                 }
             }
             catch (Exception ex)
@@ -114,16 +198,23 @@ namespace Repositories
 
                 throw ex;
             }
+            if(arrlst.Count==0)
+            {
+                retstr = "";
+            }
             return retstr;
-
         }
-        public static string getCreateQuery(ArrayList arrlst)
+        public static string getCreateQuery(ArrayList arrlst, string tablename)
         {
-            string retstr = string.Empty;
+            string retstr = "Create table " + tablename.ToUpper() + "(";
+
+            string[] strarr = null;
             try
             {
+                int i = 1;
                 foreach (string str in arrlst)
                 {
+                    strarr = str.Split(' ');
                     if (ismssql == 1)
                     {
 
@@ -140,6 +231,17 @@ namespace Repositories
                     {
                         throw new Exception("Please set value for the key DBTYPE in web.config appsetting section");
                     }
+                    ///////////////////////////////////////
+                    if (arrlst.Count == i)
+                    {
+                        retstr += str;
+                    }
+                    else
+                    {
+                        retstr += str + ",";
+                    }
+
+                    i++;
                 }
             }
             catch (Exception ex)
@@ -147,9 +249,238 @@ namespace Repositories
 
                 throw ex;
             }
+            retstr += ")";
             return retstr;
 
         }
+        public static bool UpdateTable(ArrayList arrlist, string tablename, DbConnection conn = null, DbTransaction trans = null)
+        {
+            bool retval = false;
+            string query = string.Empty;
+            bool isnewtab = false;
+
+            if (ismssql == 1)
+            {
+                using (SqlCommand cmd = new SqlCommand("select count (*) tname from information_schema.tables  where table_name ='" + tablename.ToUpper() + "'"))
+                {
+                    cmd.Connection = (SqlConnection)conn;
+                    cmd.Transaction = (SqlTransaction)trans;
+                    using (SqlDataReader reader = cmd.ExecuteReader())
+                    {
+                        reader.Read();
+                        if (reader.HasRows)
+                        {
+                            if (Convert.ToInt32(reader["tname"]) >0)
+                            {
+                                isnewtab = false;
+                            }
+                            else
+                            {
+                                isnewtab = true;
+                            }
+                        }
+                        else
+                        {
+                            isnewtab = true;
+                        }
+                    }
+                    //}
+                }
+                if (isnewtab)
+                {
+                    query = getCreateQuery(arrlist, tablename);
+                }
+                else
+                {
+                    query = getUpdateQuery(arrlist, tablename,conn,trans);
+                }
+                if (query.Length > 0)
+                {
+                    using (SqlCommand cmd = new SqlCommand(query, (SqlConnection)conn))
+                    {
+                        cmd.Transaction = (SqlTransaction)trans;
+                        cmd.ExecuteNonQuery();
+                    }
+                }
+
+            }
+            else if (ismssql == 2)
+            {
+                using (MySqlCommand cmd = new MySqlCommand("SELECT COUNT(*) AS tname FROM information_schema.tables WHERE  table_name ='" + tablename.ToUpper() + "' AND table_schema ='" + dbname + "' LIMIT 1"))
+                {
+                    cmd.Connection = (MySqlConnection)conn;
+                    cmd.Transaction = (MySqlTransaction)trans;
+                    using (MySqlDataReader reader = cmd.ExecuteReader())
+                    {
+                        reader.Read();
+                        if (reader.HasRows)
+                        {
+                            if (Convert.ToInt32(reader["tname"]) > 0)
+                            {
+                                isnewtab = false;
+                            }
+                            else
+                            {
+                                isnewtab = true;
+                            }
+                        }
+                        else
+                        {
+                            isnewtab = true;
+                        }
+                    }
+                    //using (OracleDataAdapter sda = new OracleDataAdapter())
+                    //{
+                    //    sda.SelectCommand = cmd;
+                    //using (dt)
+                    //{
+                    //    sda.Fill(dt);
+                    //}
+                    //}
+                }
+                if (isnewtab)
+                {
+                    query = getCreateQuery(arrlist, tablename);
+                }
+                else
+                {
+                    query = getUpdateQuery(arrlist, tablename,conn,trans);
+                }
+                if (query.Length > 0)
+                {
+                    using (MySqlCommand cmd = new MySqlCommand(query, (MySqlConnection)conn))
+                    {
+                        cmd.Transaction = (MySqlTransaction)trans;
+                        cmd.ExecuteNonQuery();
+                    }
+                }
+            }
+            else if (ismssql == 3)
+            {
+                //using (OracleCommand cmd = new OracleCommand("select tname from tab where tname = '"+tablename.ToUpper()+"';)", (OracleConnection)conn))
+                //{
+                //    cmd.ExecuteNonQuery();
+                //}
+
+                using (OracleCommand cmd = new OracleCommand("select tname from tab where tname = '" + tablename.ToUpper() + "'"))
+                {
+                    cmd.Connection = (OracleConnection)conn;
+                    cmd.Transaction = (OracleTransaction)trans;
+                    using (OracleDataReader reader = cmd.ExecuteReader())
+                    {
+                        reader.Read();
+                        if (reader.HasRows)
+                        {
+                            if (Convert.ToString(reader["tname"]).Length > 0)
+                            {
+                                isnewtab = false;
+                            }
+                            else
+                            {
+                                isnewtab = true;
+                            }
+                        }
+                        else
+                        {
+                            isnewtab = true;
+                        }
+                    }
+                    //using (OracleDataAdapter sda = new OracleDataAdapter())
+                    //{
+                    //    sda.SelectCommand = cmd;
+                    //using (dt)
+                    //{
+                    //    sda.Fill(dt);
+                    //}
+                    //}
+                }
+                if (isnewtab)
+                {
+                    query = getCreateQuery(arrlist, tablename);
+                }
+                else
+                {
+                    query = getUpdateQuery(arrlist, tablename,conn,trans);
+                }
+                if (query.Length > 0)
+                {
+                    using (OracleCommand cmd = new OracleCommand(query, (OracleConnection)conn))
+                    {
+                        cmd.ExecuteNonQuery();
+                        cmd.Transaction = (OracleTransaction)trans;
+                    }
+                }
+
+            }
+
+
+            return retval;
+        }
+
+        public static DataTable getTableSchema(string tablename, DbConnection conn, DbTransaction trans)
+        {
+            DataTable dt = new DataTable();
+            if (ismssql == 1)
+            {
+                using (SqlCommand cmd = new SqlCommand("sp_help " + tablename.ToUpper()))
+                {
+                    cmd.Connection = (SqlConnection)conn;
+                    cmd.Transaction = (SqlTransaction)trans;
+                    using (SqlDataAdapter sda = new SqlDataAdapter())
+                    {
+                        sda.SelectCommand = cmd;
+                        using (dt)
+                        {
+                            sda.Fill(dt);
+                        }
+                    }
+                }
+
+            }
+            else if (ismssql == 2)
+            {
+                using (MySqlCommand cmd = new MySqlCommand("DESCRIBE " + tablename.ToUpper()))
+                {
+                    cmd.Connection = (MySqlConnection)conn;
+                    cmd.Transaction = (MySqlTransaction)trans;
+                    using (MySqlDataAdapter sda = new MySqlDataAdapter())
+                    {
+                        sda.SelectCommand = cmd;
+                        using (dt)
+                        {
+                            sda.Fill(dt);
+                        }
+                    }
+
+                }
+               
+            }
+            else if (ismssql == 3)
+            {
+                //using (OracleCommand cmd = new OracleCommand("select tname from tab where tname = '"+tablename.ToUpper()+"';)", (OracleConnection)conn))
+                //{
+                //    cmd.ExecuteNonQuery();
+                //}
+
+                using (OracleCommand cmd = new OracleCommand("DESC " + tablename.ToUpper()))
+                {
+                    cmd.Connection = (OracleConnection)conn;
+                    cmd.Transaction = (OracleTransaction)trans;
+                    using (OracleDataAdapter sda = new OracleDataAdapter())
+                    {
+                        sda.SelectCommand = cmd;
+                        using (dt)
+                        {
+                            sda.Fill(dt);
+                        }
+                    }
+
+                }
+
+            }
+            return dt;
+        }
+
 
         public static int getStrLen(string str)
         {
