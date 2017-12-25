@@ -44,7 +44,7 @@ namespace Repositories
         }
         public static DbConnection getConnection(string ConnName = "")
         {
-            System.Data.SqlClient.SqlConnectionStringBuilder builder = new System.Data.SqlClient.SqlConnectionStringBuilder(getConnectionString(""));
+            System.Data.SqlClient.SqlConnectionStringBuilder builder = new System.Data.SqlClient.SqlConnectionStringBuilder(getConnectionString(ConnName));
             dbserver = builder.DataSource;
             dbname = builder.InitialCatalog;
 
@@ -53,15 +53,15 @@ namespace Repositories
             {
                 if (ismssql == 1)
                 {
-                    conn = Repository.getMSSqlConnection();
+                    conn = Repository.getMSSqlConnection(ConnName);
                 }
                 else if (ismssql == 2)
                 {
-                    conn = Repository.getMySqlConnection();
+                    conn = Repository.getMySqlConnection(ConnName);
                 }
                 else if (ismssql == 3)
                 {
-                    conn = Repository.getOracleConnection();
+                    conn = Repository.getOracleConnection(ConnName);
                 }
                 else
                 {
@@ -85,7 +85,14 @@ namespace Repositories
                 {
                     connectionName = Name;
                 }
-                constr = ConfigurationManager.ConnectionStrings["DefaultConnection"].ToString();
+                if (getStrLen(connectionName) > 0)
+                {
+                    constr = ConfigurationManager.ConnectionStrings[connectionName].ToString();
+                }
+                else
+                {
+                    throw new Exception("Error:Please add connection string in web.config.");
+                }
             }
             catch (Exception)
             {
@@ -101,18 +108,21 @@ namespace Repositories
             string nullstr = string.Empty;
             bool isnewcol = true;
             string collstr = string.Empty;
+            string colsize = string.Empty;
             Dictionary<string, bool> colltoaddmod = new Dictionary<string, bool>();
             DataTable dtschema = getTableSchema(tablename, conn, trans);
 
             if (ismssql == 1)
             {
-                retstr = "";
+
                 for (int i = 0; i < arrlst.Count; i++)
                 {
                     isnewcol = true;
                     foreach (DataRow dr in dtschema.Rows)
                     {
+                        retstr = "";
                         schemastr = Convert.ToString(dr["COLUMN_NAME"]).Trim().ToUpper();
+                        //colsize = Convert.ToString(dr["LENGTH"]).Trim().ToUpper();
                         if (Convert.ToInt32(dr["NULLABLE"]) == 1)
                         {
                             nullstr = " NULL";
@@ -132,31 +142,35 @@ namespace Repositories
                         if (Convert.ToString(arrlst[i]).ToUpper().Contains("BLOB"))
                         {
                             collstr = Convert.ToString(arrlst[i]).ToUpper().Replace("BLOB", "BINARY");
-                            arrlst[i] = collstr;
+                            // arrlst[i] = collstr;
                         }
                         else if (Convert.ToString(arrlst[i]).ToUpper().Contains("BOOLEAN"))
                         {
                             collstr = Convert.ToString(arrlst[i]).ToUpper().Replace("BOOLEAN", "BIT");
-                            arrlst[i] = collstr;
+                            //  arrlst[i] = collstr;
                         }
                         else if (Convert.ToString(arrlst[i]).ToUpper().Contains("BOOL"))
                         {
                             collstr = Convert.ToString(arrlst[i]).ToUpper().Replace("BOOL", "BIT");
-                            arrlst[i] = collstr;
+                            // arrlst[i] = collstr;
                         }
                         else if (Convert.ToString(arrlst[i]).ToUpper().Contains("DOUBLE"))
                         {
                             collstr = Convert.ToString(arrlst[i]).ToUpper().Replace("DOUBLE", "BIT");
-                            arrlst[i] = collstr;
+                            // arrlst[i] = collstr;
+                        }
+                        else
+                        {
+                            collstr = Convert.ToString(arrlst[i]).ToUpper();
                         }
                         if (schemastr.Length > 0)
                         {
 
-                            if (string.Compare(Convert.ToString(arrlst[i]).ToUpper().Split()[0], schemastr) == 0)
+                            if (string.Compare(collstr.Split()[0], schemastr) == 0)
                             {
-                                if (!Convert.ToString(arrlst[i]).ToUpper().Contains(schemastr + coltype))
+                                if (!collstr.Contains(schemastr + coltype))
                                 {
-                                    colltoaddmod.Add(Convert.ToString(arrlst[i]).ToUpper(), false);
+                                    colltoaddmod.Add(collstr, false);
                                 }
                                 isnewcol = false;
                                 break;
@@ -192,8 +206,8 @@ namespace Repositories
                         }
                         if (schemastr.Length > 0)
                         {
-
-                            if (Convert.ToString(arrlst[i]).ToUpper().Contains(schemastr))
+                            // if (string.Compare(collstr.Split(' ')[0], schemastr) == 0)
+                            if (string.Compare(Convert.ToString(arrlst[i]).ToUpper().Split(' ')[0], schemastr) == 0)
                             {
                                 if (!Convert.ToString(arrlst[i]).ToUpper().Contains(schemastr + coltype))
                                 {
@@ -211,8 +225,112 @@ namespace Repositories
                 }
             }
             else if (ismssql == 3)
-            {
-                retstr = "Alter  " + tablename.ToUpper();
+            { //////COLUMN_NAME, DATA_TYPE,DATA_LENGTH,NULLABLE
+                retstr = "BEGIN ";
+                for (int i = 0; i < arrlst.Count; i++)
+                {
+                    isnewcol = true;
+                    foreach (DataRow dr in dtschema.Rows)
+                    {
+                        collstr = "";
+                        schemastr = Convert.ToString(dr["COLUMN_NAME"]).Trim().ToUpper();
+                        //colsize = Convert.ToString(dr["DATA_LENGTH"]).Trim().ToUpper();
+                        if (String.Compare(Convert.ToString(dr["NULLABLE"]).Trim().ToUpper(), "Y") == 0)
+                        {
+                            nullstr = " NULL";
+                        }
+                        else
+                        {
+                            nullstr = " NOT NULL";
+                        }
+                        if (Convert.ToString(dr["DATA_TYPE"]).Trim().ToUpper().Contains("INT"))
+                        {
+                            coltype = " INT";
+                        }
+                        else if (Convert.ToString(dr["DATA_TYPE"]).Trim().ToUpper().Contains("NUMBER"))
+                        {
+                            coltype = " NUMBER" + "(" + Convert.ToString(dr["DATA_LENGTH"]).Trim() + ")";
+                        }
+                        else if (Convert.ToString(dr["DATA_TYPE"]).Trim().ToUpper().Contains("VARCHAR"))
+                        {
+                            coltype = " " + Convert.ToString(dr["DATA_TYPE"]).Trim().ToUpper() + "(" + Convert.ToString(dr["DATA_LENGTH"]).Trim() + ")";
+                        }
+                        else
+                        {
+                            coltype = " " + Convert.ToString(dr["DATA_TYPE"]).Trim().ToUpper();
+                        }
+                        if (schemastr.Length > 0)
+                        {
+
+                            if (Convert.ToString(arrlst[i]).ToUpper().Contains("TEXT"))
+                            {
+                                collstr = Convert.ToString(arrlst[i]).ToUpper().Replace("TEXT", "CLOB");
+                            }
+                            else if (Convert.ToString(arrlst[i]).ToUpper().Contains("DATETIME"))
+                            {
+                                collstr = Convert.ToString(arrlst[i]).ToUpper().Replace("DATETIME", "DATE");
+                            }
+                            else if (Convert.ToString(arrlst[i]).ToUpper().Contains("BOOL"))
+                            {
+                                collstr = Convert.ToString(arrlst[i]).ToUpper().Replace("BOOL", "NUMBER(22)");
+                            }
+                            else if (Convert.ToString(arrlst[i]).ToUpper().Contains("BOOLEAN"))
+                            {
+                                collstr = Convert.ToString(arrlst[i]).ToUpper().Replace("BOOLEAN", "NUMBER(22)");
+                            }
+                            else if (Convert.ToString(arrlst[i]).ToUpper().Contains("BIT"))
+                            {
+                                collstr = Convert.ToString(arrlst[i]).ToUpper().Replace("BIT", "NUMBER(22)");
+                            }
+                            else if (Convert.ToString(arrlst[i]).ToUpper().Contains("BINARY"))
+                            {
+                                collstr = Convert.ToString(arrlst[i]).ToUpper().Replace("BINARY", "RAW(2000)");
+                            }
+                            else if (Convert.ToString(arrlst[i]).ToUpper().Contains("DOUBLE"))
+                            {
+                                collstr = Convert.ToString(arrlst[i]).ToUpper().Replace("DOUBLE", "BINARY_DOUBLE");
+                            }
+                            else if (Convert.ToString(arrlst[i]).ToUpper().Contains("INT"))
+                            {
+                                collstr = Convert.ToString(arrlst[i]).ToUpper().Replace("INT", "NUMBER(22)");
+                            }
+                            else if (Convert.ToString(arrlst[i]).ToUpper().Contains("BINARY"))
+                            {
+                                collstr = Convert.ToString(arrlst[i]).ToUpper().Replace("BINARY", "RAW(2000)");
+                            }
+                            else if (Convert.ToString(arrlst[i]).ToUpper().Contains("VARCHAR"))
+                            {
+                                collstr = Convert.ToString(arrlst[i]).ToUpper().Replace("VARCHAR", "VARCHAR2");
+                            }
+                            else
+                            {
+                                collstr = Convert.ToString(arrlst[i]).ToUpper();
+                            }
+
+                            if (string.Compare(collstr.Split(' ')[0], schemastr) == 0)
+                            {
+                                if (!collstr.Contains(schemastr + coltype))
+                                {
+                                    if (collstr.Contains("NOT NULL") && nullstr.Contains("NOT NULL"))
+                                    {
+                                        collstr = collstr.Replace("NOT NULL", "");
+                                    }
+                                    else if (collstr.Contains("NULL") && string.Compare(nullstr.Trim(), "NULL") == 0)
+                                    {
+                                        collstr = collstr.Replace("NULL", "");
+                                    }
+                                    colltoaddmod.Add(collstr, false);
+                                }
+                                isnewcol = false;
+                                break;
+                            }
+                        }////
+                    }
+                    if (isnewcol)
+                    {
+                        colltoaddmod.Add(Convert.ToString(arrlst[i]).ToUpper(), true);
+                    }
+                }
             }
             string colstr = string.Empty;
             try
@@ -272,6 +390,23 @@ namespace Repositories
                     else if (ismssql == 3)
                     {
 
+                        if (col.Value == true)
+                        {
+                            colstr = "execute immediate 'ALTER TABLE  " + tablename.ToUpper() + "  ADD " + col.Key + "';";
+                        }
+                        else
+                        {
+                            if (col.Key.ToUpper().Contains("PRIMARY KEY"))
+                            {
+                                colstr = colstr.ToUpper().Replace("PRIMARY KEY", "");
+                                colstr = "execute immediate 'ALTER TABLE  " + tablename.ToUpper() + "  MODIFY " + colstr + "';";
+                            }
+                            else
+                            {
+                                colstr = "execute immediate 'ALTER TABLE  " + tablename.ToUpper() + "  MODIFY " + col.Key + "';";
+                            }
+                        }
+                        retstr += colstr;
                     }
                     else
                     {
@@ -281,13 +416,18 @@ namespace Repositories
 
                     i++;
                 }
+                if (ismssql == 3)
+                {
+                    retstr += " END;";
+                }
             }
+
             catch (Exception ex)
             {
 
                 throw ex;
             }
-            if (arrlst.Count == 0)
+            if (colltoaddmod.Count == 0)
             {
                 retstr = "";
             }
@@ -304,7 +444,7 @@ namespace Repositories
             {
                 if (ismssql == 1)//MSSQL
                 {
-                    
+
                     foreach (string str in arrlst)
                     {
                         //strarr = str.Split(' ');
@@ -346,7 +486,7 @@ namespace Repositories
                 {
                     foreach (string str in arrlst)
                     {
-                      
+
                         ///////////////////////////////////////
                         if (arrlst.Count == i)
                         {
@@ -364,10 +504,34 @@ namespace Repositories
                 {
                     foreach (string str in arrlst)
                     {
-
+                        strarr = str.Split(' ');
                         if (str.ToUpper().Contains("TEXT"))
                         {
-                            colstr = str.ToUpper().Replace("CLOB", "BINARY");
+                            colstr = str.ToUpper().Replace("TEXT", "CLOB");
+                        }
+                        else if (str.ToUpper().Contains("DATETIME"))
+                        {
+                            colstr = str.ToUpper().Replace("DATETIME", "DATE");
+                        }
+                        else if (string.Compare(strarr[1].ToUpper(), "BOOL") == 0)
+                        {
+                            colstr = str.ToUpper().Replace("BOOL", "NUMBER(22)");
+                        }
+                        else if (string.Compare(strarr[1].ToUpper(), "BOOLEAN") == 0)
+                        {
+                            colstr = str.ToUpper().Replace("BOOLEAN", "NUMBER(22)");
+                        }
+                        else if (string.Compare(strarr[1].ToUpper(), "BIT") == 0)
+                        {
+                            colstr = str.ToUpper().Replace("BIT", "NUMBER(22)");
+                        }
+                        else if (string.Compare(strarr[1].ToUpper(), "BINARY") == 0)
+                        {
+                            colstr = str.ToUpper().Replace("BINARY", "RAW(2000)");
+                        }
+                        else if (string.Compare(strarr[1].ToUpper(), "DOUBLE") == 0)
+                        {
+                            colstr = str.ToUpper().Replace("DOUBLE", "BINARY_DOUBLE");
                         }
                         else
                         {
@@ -553,8 +717,9 @@ namespace Repositories
                 {
                     using (OracleCommand cmd = new OracleCommand(query, (OracleConnection)conn))
                     {
-                        cmd.ExecuteNonQuery();
                         cmd.Transaction = (OracleTransaction)trans;
+                        cmd.ExecuteNonQuery();
+
                     }
                 }
 
@@ -609,7 +774,7 @@ namespace Repositories
                 //    cmd.ExecuteNonQuery();
                 //}
 
-                using (OracleCommand cmd = new OracleCommand("DESC " + tablename.ToUpper()))
+                using (OracleCommand cmd = new OracleCommand("Select COLUMN_NAME, DATA_TYPE,DATA_LENGTH,NULLABLE from user_tab_columns where table_name='" + tablename.ToUpper() + "'"))
                 {
                     cmd.Connection = (OracleConnection)conn;
                     cmd.Transaction = (OracleTransaction)trans;
