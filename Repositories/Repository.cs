@@ -348,7 +348,7 @@ namespace Repositories
                         {
                             if (col.Key.ToUpper().Contains("PRIMARY KEY"))
                             {
-                                colstr = colstr.ToUpper().Replace("PRIMARY KEY", "");
+                                colstr = col.Key.ToUpper().Replace("PRIMARY KEY", "");
                                 colstr = "ALTER TABLE  " + tablename.ToUpper() + "  ALTER COLUMN " + colstr + ";";
                             }
                             else
@@ -369,7 +369,7 @@ namespace Repositories
                         {
                             if (col.Key.ToUpper().Contains("PRIMARY KEY"))
                             {
-                                colstr = colstr.ToUpper().Replace("PRIMARY KEY", "");
+                                colstr = col.Key.ToUpper().Replace("PRIMARY KEY", "");
                                 colstr = "  MODIFY COLUMN " + colstr;
                             }
                             else
@@ -398,7 +398,7 @@ namespace Repositories
                         {
                             if (col.Key.ToUpper().Contains("PRIMARY KEY"))
                             {
-                                colstr = colstr.ToUpper().Replace("PRIMARY KEY", "");
+                                colstr = col.Key.ToUpper().Replace("PRIMARY KEY", "");
                                 colstr = "execute immediate 'ALTER TABLE  " + tablename.ToUpper() + "  MODIFY " + colstr + "';";
                             }
                             else
@@ -734,10 +734,8 @@ namespace Repositories
             DataTable dt = new DataTable();
             if (ismssql == 1)
             {
-                using (SqlCommand cmd = new SqlCommand("sp_columns " + tablename.ToUpper()))
+                using (SqlCommand cmd = new SqlCommand("sp_columns " + tablename.ToUpper(), (SqlConnection)conn, (SqlTransaction)trans))
                 {
-                    cmd.Connection = (SqlConnection)conn;
-                    cmd.Transaction = (SqlTransaction)trans;
                     using (SqlDataAdapter sda = new SqlDataAdapter())
                     {
                         sda.SelectCommand = cmd;
@@ -807,86 +805,237 @@ namespace Repositories
             }
             return retval;
         }
+
         public static DataTable getTable(string query, string TableName = "", DbConnection Conn = null, DbTransaction Trans = null, string ConnName = "")
         {
             DataTable dt = new DataTable(TableName);
-            try
+            if (Conn == null)
             {
-                if (Conn == null)
-                {
-                    Conn = Repository.getConnection(ConnName);
-                }
-                if (ismssql == 1)
-                {
+                Conn = Repository.getConnection(ConnName);
+            }
+            if (ismssql == 1)
+            {
 
-                    using (SqlCommand cmd = new SqlCommand(query))
-                    {
-                        using (Conn)
-                        {
-                            cmd.Connection = (SqlConnection)Conn;
-                            cmd.Transaction = (SqlTransaction)Trans;
-                            using (SqlDataAdapter sda = new SqlDataAdapter())
-                            {
-                                sda.SelectCommand = cmd;
-                                using (dt)
-                                {
-                                    sda.Fill(dt);
-                                }
-                            }
-                        }
-                    }
-                }
-                else if (ismssql == 2)
+                using (SqlCommand cmd = new SqlCommand(query))
                 {
-                    using (MySqlCommand cmd = new MySqlCommand(query))
+                    cmd.Connection = (SqlConnection)Conn;
+                    cmd.Transaction = (SqlTransaction)Trans;
+                    using (SqlDataAdapter sda = new SqlDataAdapter())
                     {
-                        using (Conn)
+                        sda.SelectCommand = cmd;
+                        using (dt)
                         {
-                            cmd.Connection = (MySqlConnection)Conn;
-                            cmd.Transaction = (MySqlTransaction)Trans;
-                            using (MySqlDataAdapter sda = new MySqlDataAdapter())
-                            {
-                                sda.SelectCommand = cmd;
-                                using (dt)
-                                {
-                                    sda.Fill(dt);
-                                }
-                            }
+                            sda.Fill(dt);
                         }
                     }
                 }
-                else if (ismssql == 3)
+            }
+            else if (ismssql == 2)
+            {
+                using (MySqlCommand cmd = new MySqlCommand(query))
                 {
-                    using (OracleCommand cmd = new OracleCommand(query))
+                    cmd.Connection = (MySqlConnection)Conn;
+                    cmd.Transaction = (MySqlTransaction)Trans;
+                    using (MySqlDataAdapter sda = new MySqlDataAdapter())
                     {
-                        using (Conn)
+                        sda.SelectCommand = cmd;
+                        using (dt)
                         {
-                            cmd.Connection = (OracleConnection)Conn;
-                            cmd.Transaction = (OracleTransaction)Trans;
-                            using (OracleDataAdapter sda = new OracleDataAdapter())
-                            {
-                                sda.SelectCommand = cmd;
-                                using (dt)
-                                {
-                                    sda.Fill(dt);
-                                }
-                            }
+                            sda.Fill(dt);
                         }
                     }
-                }
 
-            }
-            catch (Exception)
-            {
-            }
-            finally
-            {
-                if (Conn != null && Conn.State == ConnectionState.Open)
-                {
-                    Conn.Close();
                 }
             }
+            else if (ismssql == 3)
+            {
+                using (OracleCommand cmd = new OracleCommand(query))
+                {
+                    cmd.Connection = (OracleConnection)Conn;
+                    cmd.Transaction = (OracleTransaction)Trans;
+                    using (OracleDataAdapter sda = new OracleDataAdapter())
+                    {
+                        sda.SelectCommand = cmd;
+                        using (dt)
+                        {
+                            sda.Fill(dt);
+                        }
+                    }
+
+                }
+            }
+
             return dt;
+        }
+        public static bool updateTableData(Hashtable ht, string tablename, bool isforupdate, DbConnection conn, DbTransaction trans)
+        {
+            string retstring = string.Empty;
+            bool retval = false;
+            string colstr = string.Empty;
+            Object colval = null;
+            ICollection keys = ht.Keys;
+            // DataTable dt = getTableSchema(tablename, conn, trans);
+            int i = 1;
+            if (ismssql == 1)
+            {
+                if (isforupdate)
+                {
+
+                }
+                else
+                {
+                    retstring = "INSERT INTO " + tablename + "(";
+                    foreach (string key in ht.Keys)
+                    {
+                        if (i == ht.Count)
+                        {
+                            colstr += key;
+                            colval += "@" + key;
+                        }
+                        else
+                        {
+                            colstr += key + ",";
+                            colval += "@" + key + ",";
+                        }
+
+                        i++;
+                    }
+                    retstring += colstr + ") values(" + colval + ")";
+
+                    using (SqlCommand cmd = new SqlCommand(retstring))
+                    {
+                        foreach(string key in ht.Keys)
+                        {
+                            SqlParameter param = new SqlParameter();
+                            param.ParameterName = "@"+key;
+                            param.Value = ht[key];
+                            cmd.Parameters.Add(param);
+                        }
+                       // cmd.Parameters.Add("id", DbType.String).Value = empid.Text.Trim();
+                      
+                        cmd.Connection =(SqlConnection) conn;
+                        cmd.Transaction = (SqlTransaction)trans;
+                        int issaved = cmd.ExecuteNonQuery();
+                        if (issaved > 0)
+                        {
+                           retval=true;
+                        }
+
+                    }
+                }
+            }
+            else if(ismssql==2)
+            {
+                if (isforupdate)
+                {
+
+                }
+                else
+                {
+                    retstring = "INSERT INTO " + tablename + "(";
+                    foreach (string key in ht.Keys)
+                    {
+                        if (i == ht.Count)
+                        {
+                            colstr += key;
+                            colval += "@" + key;
+                        }
+                        else
+                        {
+                            colstr += key + ",";
+                            colval += "@" + key + ",";
+                        }
+
+                        i++;
+                    }
+                    retstring += colstr + ") values(" + colval + ")";
+
+                    using (MySqlCommand cmd = new MySqlCommand(retstring))
+                    {
+                        foreach (string key in ht.Keys)
+                        {
+                            MySqlParameter param = new MySqlParameter();
+                            param.ParameterName = "@" + key;
+                            param.Value = ht[key];
+                            cmd.Parameters.Add(param);
+                        }
+                        // cmd.Parameters.Add("id", DbType.String).Value = empid.Text.Trim();
+
+                        cmd.Connection = (MySqlConnection)conn;
+                        cmd.Transaction = (MySqlTransaction)trans;
+                        int issaved = cmd.ExecuteNonQuery();
+                        if (issaved > 0)
+                        {
+                            retval = true;
+                        }
+
+                    }
+                }
+
+            }
+            else if(ismssql==3)
+            {
+
+                if (isforupdate)
+                {
+
+                }
+                else
+                {
+                    retstring = "INSERT INTO " + tablename + "(";
+                    foreach (string key in ht.Keys)
+                    {
+                        if (i == ht.Count)
+                        {
+                            colstr += key;
+                            colval += ":" + key;
+                        }
+                        else
+                        {
+                            colstr += key + ",";
+                            colval += ":" + key + ",";
+                        }
+
+                        i++;
+                    }
+                    retstring += colstr + ") values(" + colval + ")";
+
+                    using (OracleCommand cmd = new OracleCommand(retstring))
+                    {
+                        foreach (string key in ht.Keys)
+                        {
+                            //OracleParameter param = new OracleParameter();
+                            //param.ParameterName = "@" + key;
+                            //param.Value = ht[key];
+                            //cmd.Parameters.Add(param);
+                            cmd.Parameters.Add(new OracleParameter(key,ht[key]));
+                        }
+                        // cmd.Parameters.Add("id", DbType.String).Value = empid.Text.Trim();
+
+                        cmd.Connection = (OracleConnection)conn;
+                        cmd.Transaction = (OracleTransaction)trans;
+                        int issaved = cmd.ExecuteNonQuery();
+                        if (issaved > 0)
+                        {
+                            retval = true;
+                        }
+
+                    }
+                }
+            }
+            else
+            {
+                throw new Exception("Please set value for the key DBTYPE in web.config appsetting section");
+            }
+            return retval;
+
+        }
+        public static bool executeQuery(string query,DbConnection conn=null,DbTransaction trans=null)
+        {
+            bool retval = false;
+
+            return retval;
+
         }
         #endregion
         #region Conversion Section
@@ -914,7 +1063,109 @@ namespace Repositories
             }
             return retval;
         }
+        public static string getString(object val)
+        {
+            string retval = string.Empty;
+            try
+            {
+                retval = Convert.ToString(val).Trim();
+            }
+            catch (Exception)
+            {
+            }
+            return retval;
+        }
         #endregion
+
+        #region Application
+        public static bool isTableExits(string tablename, DbConnection conn, DbTransaction trans)
+        {
+            bool retval = false;
+            if (ismssql == 1)
+            {
+                using (SqlCommand cmd = new SqlCommand("select count (*) tname from information_schema.tables  where table_name ='" + tablename.ToUpper() + "'"))
+                {
+                    cmd.Connection = (SqlConnection)conn;
+                    cmd.Transaction = (SqlTransaction)trans;
+                    using (SqlDataReader reader = cmd.ExecuteReader())
+                    {
+                        reader.Read();
+                        if (reader.HasRows)
+                        {
+                            if (Convert.ToInt32(reader["tname"]) > 0)
+                            {
+                                retval = true;
+                            }
+                            else
+                            {
+                                retval = false;
+                            }
+                        }
+                        else
+                        {
+                            retval = false;
+                        }
+                    }
+                }
+            }
+            else if (ismssql == 2)
+            {
+                using (MySqlCommand cmd = new MySqlCommand("SELECT COUNT(*) AS tname FROM information_schema.tables WHERE  table_name ='" + tablename.ToUpper() + "' AND table_schema ='" + dbname + "' LIMIT 1"))
+                {
+                    cmd.Connection = (MySqlConnection)conn;
+                    cmd.Transaction = (MySqlTransaction)trans;
+                    using (MySqlDataReader reader = cmd.ExecuteReader())
+                    {
+                        reader.Read();
+                        if (reader.HasRows)
+                        {
+                            if (Convert.ToInt32(reader["tname"]) > 0)
+                            {
+                                retval = true;
+                            }
+                            else
+                            {
+                                retval = false;
+                            }
+                        }
+                        else
+                        {
+                            retval = false;
+                        }
+                    }
+                }
+            }
+            else if (ismssql == 3)
+            {
+                using (OracleCommand cmd = new OracleCommand("select tname from tab where tname = '" + tablename.ToUpper() + "'"))
+                {
+                    cmd.Connection = (OracleConnection)conn;
+                    cmd.Transaction = (OracleTransaction)trans;
+                    using (OracleDataReader reader = cmd.ExecuteReader())
+                    {
+                        reader.Read();
+                        if (reader.HasRows)
+                        {
+                            if (Convert.ToString(reader["tname"]).Length > 0)
+                            {
+                                retval = true;
+                            }
+                            else
+                            {
+                                retval = false;
+                            }
+                        }
+                        else
+                        {
+                            retval = false;
+                        }
+                    }
+                }
+            }
+            return retval;
+        }
+        #endregion
+
     }
 
 
