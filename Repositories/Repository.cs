@@ -867,20 +867,55 @@ namespace Repositories
 
             return dt;
         }
-        public static bool updateTableData(Hashtable ht, string tablename, bool isforupdate, DbConnection conn, DbTransaction trans)
+        public static bool updateTableData(Hashtable ht, string tablename, bool isforupdate, string whereclse = "", DbConnection conn = null, DbTransaction trans = null)
         {
             string retstring = string.Empty;
             bool retval = false;
             string colstr = string.Empty;
             Object colval = null;
             ICollection keys = ht.Keys;
+          //  string[] arrwhcl = null;
+            if (whereclse.Length > 0)
+            {
+               // arrwhcl = whereclse.Split('=');
+                whereclse = " where " + whereclse;
+            }
             // DataTable dt = getTableSchema(tablename, conn, trans);
             int i = 1;
             if (ismssql == 1)
             {
                 if (isforupdate)
                 {
+                    retstring = "Update " + tablename + " set ";
+                    foreach (string key in ht.Keys)
+                    {
+                        if (i == ht.Count)
+                        {
+                            colstr += key + "=@" + key;
+                        }
+                        else
+                        {
+                            colstr += key + "=@" + key + ",";
+                        }
 
+                        i++;
+                    }
+                    retstring = retstring + colstr + " " + whereclse;
+                    SqlConnection orconn = (SqlConnection)conn;
+                    using (SqlCommand cmd = new SqlCommand(retstring, orconn))
+                    {
+                        cmd.Transaction = (SqlTransaction)trans;
+                        foreach (string key in ht.Keys)
+                        {
+                            cmd.Parameters.Add(new SqlParameter("@"+key, ht[key]));
+                        }
+                        int issaved = cmd.ExecuteNonQuery();
+                        if (issaved > 0)
+                        {
+                            retval = true;
+                        }
+
+                    }
                 }
                 else
                 {
@@ -904,31 +939,60 @@ namespace Repositories
 
                     using (SqlCommand cmd = new SqlCommand(retstring))
                     {
-                        foreach(string key in ht.Keys)
+                        foreach (string key in ht.Keys)
                         {
                             SqlParameter param = new SqlParameter();
-                            param.ParameterName = "@"+key;
+                            param.ParameterName = "@" + key;
                             param.Value = ht[key];
                             cmd.Parameters.Add(param);
                         }
-                       // cmd.Parameters.Add("id", DbType.String).Value = empid.Text.Trim();
-                      
-                        cmd.Connection =(SqlConnection) conn;
+                        // cmd.Parameters.Add("id", DbType.String).Value = empid.Text.Trim();
+
+                        cmd.Connection = (SqlConnection)conn;
                         cmd.Transaction = (SqlTransaction)trans;
                         int issaved = cmd.ExecuteNonQuery();
                         if (issaved > 0)
                         {
-                           retval=true;
+                            retval = true;
                         }
 
                     }
                 }
             }
-            else if(ismssql==2)
+            else if (ismssql == 2)
             {
                 if (isforupdate)
                 {
+                    retstring = "Update " + tablename + " set ";
+                    foreach (string key in ht.Keys)
+                    {
+                        if (i == ht.Count)
+                        {
+                            colstr += key + "=@" + key;
+                        }
+                        else
+                        {
+                            colstr += key + "=@" + key + ",";
+                        }
 
+                        i++;
+                    }
+                    retstring = retstring + colstr + " " + whereclse;
+                    MySqlConnection orconn = (MySqlConnection)conn;
+                    using (MySqlCommand cmd = new MySqlCommand(retstring, orconn))
+                    {
+                        cmd.Transaction = (MySqlTransaction)trans;
+                        foreach (string key in ht.Keys)
+                        {
+                            cmd.Parameters.Add(new MySqlParameter("@"+key, ht[key]));
+                        }
+                        int issaved = cmd.ExecuteNonQuery();
+                        if (issaved > 0)
+                        {
+                            retval = true;
+                        }
+
+                    }
                 }
                 else
                 {
@@ -973,12 +1037,40 @@ namespace Repositories
                 }
 
             }
-            else if(ismssql==3)
+            else if (ismssql == 3)
             {
-
                 if (isforupdate)
                 {
+                    retstring = "Update " + tablename + " set ";
+                    foreach (string key in ht.Keys)
+                    {
+                        if (i == ht.Count)
+                        {
+                            colstr += key + "=:" + key;
+                        }
+                        else
+                        {
+                            colstr += key + "=:" + key + ",";
+                        }
 
+                        i++;
+                    }
+                    retstring = retstring + colstr + " " + whereclse;
+                    OracleConnection orconn = (OracleConnection)conn;
+                    using (OracleCommand cmd = new OracleCommand(retstring,orconn))
+                    {
+                        cmd.Transaction = (OracleTransaction)trans;
+                        foreach (string key in ht.Keys)
+                        {
+                            cmd.Parameters.Add(new OracleParameter(key, ht[key]));
+                        }
+                        int issaved = cmd.ExecuteNonQuery();
+                        if (issaved > 0)
+                        {
+                            retval = true;
+                        }
+
+                    }
                 }
                 else
                 {
@@ -1008,7 +1100,7 @@ namespace Repositories
                             //param.ParameterName = "@" + key;
                             //param.Value = ht[key];
                             //cmd.Parameters.Add(param);
-                            cmd.Parameters.Add(new OracleParameter(key,ht[key]));
+                            cmd.Parameters.Add(new OracleParameter(key, ht[key]));
                         }
                         // cmd.Parameters.Add("id", DbType.String).Value = empid.Text.Trim();
 
@@ -1030,54 +1122,62 @@ namespace Repositories
             return retval;
 
         }
-        public static bool executeQuery(string query,DbConnection conn=null,DbTransaction trans=null)
+        public static bool executeQuery(string query, DbConnection conn = null, DbTransaction trans = null)
         {
             bool retval = false;
+            if (ismssql == 1)
+            {
 
+                using (SqlCommand cmd = new SqlCommand(query))
+                {
+
+                    cmd.Connection = (SqlConnection)conn;
+                    cmd.Transaction = (SqlTransaction)trans;
+                    int issaved = cmd.ExecuteNonQuery();
+                    if (issaved > 0)
+                    {
+                        retval = true;
+                    }
+
+                }
+            }
+            else if (ismssql == 2)
+            {
+                using (MySqlCommand cmd = new MySqlCommand(query))
+                {
+                    // cmd.Parameters.Add("id", DbType.String).Value = empid.Text.Trim();
+
+                    cmd.Connection = (MySqlConnection)conn;
+                    cmd.Transaction = (MySqlTransaction)trans;
+                    int issaved = cmd.ExecuteNonQuery();
+                    if (issaved > 0)
+                    {
+                        retval = true;
+                    }
+
+                }
+            }
+            else if (ismssql == 3)
+            {
+
+                using (OracleCommand cmd = new OracleCommand(query))
+                {
+                    cmd.Connection = (OracleConnection)conn;
+                    cmd.Transaction = (OracleTransaction)trans;
+                    int issaved = cmd.ExecuteNonQuery();
+                    if (issaved > 0)
+                    {
+                        retval = true;
+                    }
+                }
+            }
+            else
+            {
+                throw new Exception("Please set value for the key DBTYPE in web.config appsetting section");
+            }
             return retval;
 
         }
-        #endregion
-        #region Conversion Section
-        public static int getInt(string val)
-        {
-            int retval = 0;
-            try
-            {
-                retval = Convert.ToInt32(val);
-            }
-            catch (Exception)
-            {
-            }
-            return retval;
-        }
-        public static double getDouble(string val)
-        {
-            double retval = 0;
-            try
-            {
-                retval = Convert.ToDouble(val);
-            }
-            catch (Exception)
-            {
-            }
-            return retval;
-        }
-        public static string getString(object val)
-        {
-            string retval = string.Empty;
-            try
-            {
-                retval = Convert.ToString(val).Trim();
-            }
-            catch (Exception)
-            {
-            }
-            return retval;
-        }
-        #endregion
-
-        #region Application
         public static bool isTableExits(string tablename, DbConnection conn, DbTransaction trans)
         {
             bool retval = false;
@@ -1164,6 +1264,48 @@ namespace Repositories
             }
             return retval;
         }
+        #endregion
+        #region Conversion Section
+        public static int getInt(string val)
+        {
+            int retval = 0;
+            try
+            {
+                retval = Convert.ToInt32(val);
+            }
+            catch (Exception)
+            {
+            }
+            return retval;
+        }
+        public static double getDouble(string val)
+        {
+            double retval = 0;
+            try
+            {
+                retval = Convert.ToDouble(val);
+            }
+            catch (Exception)
+            {
+            }
+            return retval;
+        }
+        public static string getString(object val)
+        {
+            string retval = string.Empty;
+            try
+            {
+                retval = Convert.ToString(val).Trim();
+            }
+            catch (Exception)
+            {
+            }
+            return retval;
+        }
+        #endregion
+
+        #region Application
+
         #endregion
 
     }
