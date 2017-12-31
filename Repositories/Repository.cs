@@ -7,7 +7,9 @@ using System.Configuration;
 using System.Data;
 using System.Data.Common;
 using System.Data.SqlClient;
+using System.IO;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -179,7 +181,7 @@ namespace Repositories
                     }
                     if (isnewcol)
                     {
-                        colltoaddmod.Add(Convert.ToString(arrlst[i]).ToUpper(), true);
+                        colltoaddmod.Add(collstr, true);
                     }
                 }
             }
@@ -268,7 +270,7 @@ namespace Repositories
                             }
                             else if (Convert.ToString(arrlst[i]).ToUpper().Contains("DATETIME"))
                             {
-                                collstr = Convert.ToString(arrlst[i]).ToUpper().Replace("DATETIME", "DATE");
+                                collstr = Convert.ToString(arrlst[i]).ToUpper().Replace("DATETIME", "TIMESTAMP");
                             }
                             else if (Convert.ToString(arrlst[i]).ToUpper().Contains("BOOL"))
                             {
@@ -293,10 +295,6 @@ namespace Repositories
                             else if (Convert.ToString(arrlst[i]).ToUpper().Contains("INT"))
                             {
                                 collstr = Convert.ToString(arrlst[i]).ToUpper().Replace("INT", "NUMBER(22)");
-                            }
-                            else if (Convert.ToString(arrlst[i]).ToUpper().Contains("BINARY"))
-                            {
-                                collstr = Convert.ToString(arrlst[i]).ToUpper().Replace("BINARY", "RAW(2000)");
                             }
                             else if (Convert.ToString(arrlst[i]).ToUpper().Contains("VARCHAR"))
                             {
@@ -328,7 +326,7 @@ namespace Repositories
                     }
                     if (isnewcol)
                     {
-                        colltoaddmod.Add(Convert.ToString(arrlst[i]).ToUpper(), true);
+                        colltoaddmod.Add(collstr, true);
                     }
                 }
             }
@@ -511,7 +509,7 @@ namespace Repositories
                         }
                         else if (str.ToUpper().Contains("DATETIME"))
                         {
-                            colstr = str.ToUpper().Replace("DATETIME", "DATE");
+                            colstr = str.ToUpper().Replace("DATETIME", "TIMESTAMP");
                         }
                         else if (string.Compare(strarr[1].ToUpper(), "BOOL") == 0)
                         {
@@ -808,10 +806,12 @@ namespace Repositories
 
         public static DataTable getTable(string query, string TableName = "", DbConnection Conn = null, DbTransaction Trans = null, string ConnName = "")
         {
+            bool closeconn = false;
             DataTable dt = new DataTable(TableName);
             if (Conn == null)
             {
                 Conn = Repository.getConnection(ConnName);
+                closeconn = true;
             }
             if (ismssql == 1)
             {
@@ -864,7 +864,13 @@ namespace Repositories
 
                 }
             }
-
+            if(closeconn)
+            {
+                if(Conn!=null && ConnectionState.Open==Conn.State)
+                {
+                    Conn.Close();
+                }
+            }
             return dt;
         }
         public static bool updateTableData(Hashtable ht, string tablename, bool isforupdate, string whereclse = "", DbConnection conn = null, DbTransaction trans = null)
@@ -1302,10 +1308,134 @@ namespace Repositories
             }
             return retval;
         }
+        public enum Mode
+        {
+            AlphaNumeric = 1,
+            Alpha = 2,
+            Numeric = 3
+        }
+
+        public static string IncrementStr(string strToIncrement, Mode mode)
+        {
+            var textArr = strToIncrement.ToCharArray();
+
+            // Add legal characters
+            var characters = new List<char>();
+
+            if (mode == Mode.AlphaNumeric || mode == Mode.Numeric)
+                for (char c = '0'; c <= '9'; c++)
+                    characters.Add(c);
+
+            if (mode == Mode.AlphaNumeric || mode == Mode.Alpha)
+                for (char c = 'a'; c <= 'z'; c++)
+                    characters.Add(c);
+
+            // Loop from end to beginning
+            for (int i = textArr.Length - 1; i >= 0; i--)
+            {
+                if (textArr[i] == characters.Last())
+                {
+                    textArr[i] = characters.First();
+                }
+                else
+                {
+                    textArr[i] = characters[characters.IndexOf(textArr[i]) + 1];
+                    break;
+                }
+            }
+
+            return new string(textArr);
+        }
+        public static bool isUnique(string colname, string colval, string table,ref string message, DbConnection conn = null, DbTransaction trans = null)
+        {
+            bool retval = true;
+            DataTable dt = getTable("Select 1 from " + table + " where " + colname + "='" + colval + "'",table,conn,trans);
+            if(dt.Rows.Count>0)
+            {
+                retval = false;
+                message = "Already Exist!";
+            }
+            return retval;
+        }
+        public static string getColVal(string colname, string colval, string table, string retcol, DbConnection conn = null, DbTransaction trans = null)
+        {
+            string retval = string.Empty;
+            DataTable dt = getTable("Select "+retcol+" from " + table + " where " + colname + "='" + colval + "'", table, conn, trans);
+            if (dt.Rows.Count > 0)
+            {
+                retval = getString(dt.Rows[0][retcol]);
+            }
+            return retval;
+        }
+        public static string getMaxVal(string colname,string table, DbConnection conn = null, DbTransaction trans = null)
+        {
+            string retval = string.Empty;
+            DataTable dt = new DataTable();
+            if(ismssql==1)
+            {
+                dt = getTable("Select max(" + colname + ") maxval from " + table, table, conn, trans);
+            }
+            else if (ismssql == 2)
+            {
+                dt = getTable("Select max(" + colname + ") maxval from " + table, table, conn, trans);
+            }
+            else if (ismssql == 1)
+            {
+                dt = getTable("Select max(" + colname + ") maxval from " + table, table, conn, trans);
+            }
+
+            if (dt.Rows.Count > 0)
+            {
+                retval = getString(dt.Rows[0]["maxval"]);
+            }
+            return retval;
+        }
         #endregion
 
-        #region Application
+        #region EncryptionDecryption
+        public static string Encrypt(string strToEncrypt)
+        {
+            string EncryptionKey = "WORK2017FOR2018PASSION2019";
+            byte[] clearBytes = Encoding.Unicode.GetBytes(strToEncrypt);
+            using (Aes encryptor = Aes.Create())
+            {
+                Rfc2898DeriveBytes pdb = new Rfc2898DeriveBytes(EncryptionKey, new byte[] { 0x49, 0x76, 0x61, 0x6e, 0x20, 0x4d, 0x65, 0x64, 0x76, 0x65, 0x64, 0x65, 0x76 });
+                encryptor.Key = pdb.GetBytes(32);
+                encryptor.IV = pdb.GetBytes(16);
+                using (MemoryStream ms = new MemoryStream())
+                {
+                    using (CryptoStream cs = new CryptoStream(ms, encryptor.CreateEncryptor(), CryptoStreamMode.Write))
+                    {
+                        cs.Write(clearBytes, 0, clearBytes.Length);
+                        cs.Close();
+                    }
+                    strToEncrypt = Convert.ToBase64String(ms.ToArray());
+                }
+            }
+            return strToEncrypt;
+        }
 
+        public static string Decrypt(string strToDecrypt)
+        {
+            string EncryptionKey = "WORK2017FOR2018PASSION2019";
+            byte[] cipherBytes = Convert.FromBase64String(strToDecrypt);
+            using (Aes encryptor = Aes.Create())
+            {
+                Rfc2898DeriveBytes pdb = new Rfc2898DeriveBytes(EncryptionKey, new byte[] { 0x49, 0x76, 0x61, 0x6e, 0x20, 0x4d, 0x65, 0x64, 0x76, 0x65, 0x64, 0x65, 0x76 });
+                encryptor.Key = pdb.GetBytes(32);
+                encryptor.IV = pdb.GetBytes(16);
+                using (MemoryStream ms = new MemoryStream())
+                {
+                    using (CryptoStream cs = new CryptoStream(ms, encryptor.CreateDecryptor(), CryptoStreamMode.Write))
+                    {
+                        cs.Write(cipherBytes, 0, cipherBytes.Length);
+                        cs.Close();
+                    }
+                    strToDecrypt = Encoding.Unicode.GetString(ms.ToArray());
+                }
+            }
+            return strToDecrypt;
+        }
         #endregion
 
     }
