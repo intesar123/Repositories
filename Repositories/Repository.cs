@@ -143,7 +143,7 @@ namespace Repositories
                         }
                         if (Convert.ToString(arrlst[i]).ToUpper().Contains("BLOB"))
                         {
-                            collstr = Convert.ToString(arrlst[i]).ToUpper().Replace("BLOB", "BINARY");
+                            collstr = Convert.ToString(arrlst[i]).ToUpper().Replace("BLOB", "VARBINARY(MAX)");
                             // arrlst[i] = collstr;
                         }
                         else if (Convert.ToString(arrlst[i]).ToUpper().Contains("BOOLEAN"))
@@ -448,7 +448,7 @@ namespace Repositories
                         //strarr = str.Split(' ');
                         if (str.ToUpper().Contains("BLOB"))
                         {
-                            colstr = str.ToUpper().Replace("BLOB", "BINARY");
+                            colstr = str.ToUpper().Replace("BLOB", "VARBINARY(MAX)");
                         }
                         else if (str.ToUpper().Contains("BOOLEAN"))
                         {
@@ -1364,6 +1364,19 @@ namespace Repositories
             if (dt.Rows.Count > 0)
             {
                 retval = getString(dt.Rows[0][retcol]);
+            }
+            return retval;
+        }
+        public static byte[] getColByteVal(string colname, string colval, string table, string retcol, DbConnection conn = null, DbTransaction trans = null)
+        {
+            byte[] retval = null;
+            DataTable dt = getTable("Select " + retcol + " from " + table + " where " + colname + "='" + colval + "'", table, conn, trans);
+            if (dt.Rows.Count > 0)
+            {
+                if(dt.Rows[0][retcol]!=DBNull.Value)
+                { 
+                    retval = (byte[])dt.Rows[0][retcol];
+                }  
             }
             return retval;
         }
