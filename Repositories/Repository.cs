@@ -1308,6 +1308,24 @@ namespace Repositories
             }
             return retval;
         }
+        public static bool getBoolean(object val)
+        {
+            bool retval = false;
+            try
+            {
+                if(val!=DBNull.Value)
+                {
+                    if(Convert.ToInt32(val)==1)
+                    {
+                        retval = true;
+                    }
+                }
+            }
+            catch (Exception)
+            {
+            }
+            return retval;
+        }
         public enum Mode
         {
             AlphaNumeric = 1,
@@ -1356,6 +1374,39 @@ namespace Repositories
                 message = "Already Exist!";
             }
             return retval;
+        }
+
+        public static string getMultiString(DataTable dt, string col)
+        {
+            string retstr = "''";
+            if (dt.Rows.Count > 0)
+            {
+                retstr = string.Empty;
+                for (int i = 0; i < dt.Rows.Count; i++)
+                {
+                    if (i == dt.Rows.Count - 1)
+                    {
+                        retstr += "'"+ Repository.getString(dt.Rows[i][col])+"'";
+                    }
+                    else
+                    {
+                        retstr += "'" + Repository.getString(dt.Rows[i][col]) + "',";
+                    }
+                }
+            }
+            return retstr;
+        }
+        public static List<string> getListStr(DataTable dt, string col)
+        {
+            List<string> retstr =new List<string>();
+            if (dt.Rows.Count > 0)
+            {
+                for (int i = 0; i < dt.Rows.Count; i++)
+                {
+                    retstr.Add(Repository.getString(dt.Rows[i][col]));
+                }
+            }
+            return retstr;
         }
         public static string getColVal(string colname, string colval, string table, string retcol, DbConnection conn = null, DbTransaction trans = null)
         {
