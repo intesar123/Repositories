@@ -161,6 +161,11 @@ namespace Repositories
                             collstr = Convert.ToString(arrlst[i]).ToUpper().Replace("DOUBLE", "BIT");
                             // arrlst[i] = collstr;
                         }
+                        else if (Convert.ToString(arrlst[i]).ToUpper().Contains("LONGTEXT"))
+                        {
+                            collstr = Convert.ToString(arrlst[i]).ToUpper().Replace("LONGTEXT", "VARBINARY(MAX)");
+                            // arrlst[i] = collstr;
+                        }
                         else
                         {
                             collstr = Convert.ToString(arrlst[i]).ToUpper();
@@ -299,6 +304,11 @@ namespace Repositories
                             else if (Convert.ToString(arrlst[i]).ToUpper().Contains("VARCHAR"))
                             {
                                 collstr = Convert.ToString(arrlst[i]).ToUpper().Replace("VARCHAR", "VARCHAR2");
+                            }
+                            else if (Convert.ToString(arrlst[i]).ToUpper().Contains("LONGTEXT"))
+                            {
+                                collstr = Convert.ToString(arrlst[i]).ToUpper().Replace("LONGTEXT", "CLOB");
+                                // arrlst[i] = collstr;
                             }
                             else
                             {
@@ -446,10 +456,15 @@ namespace Repositories
                     foreach (string str in arrlst)
                     {
                         //strarr = str.Split(' ');
-                        if (str.ToUpper().Contains("BLOB"))
+                        if (str.ToUpper().Contains("MEDIUMBLOB"))
+                        {
+                            colstr = str.ToUpper().Replace("MEDIUMBLOB", "VARBINARY(MAX)");
+                        }
+                        else if (str.ToUpper().Contains("BLOB"))
                         {
                             colstr = str.ToUpper().Replace("BLOB", "VARBINARY(MAX)");
                         }
+                     
                         else if (str.ToUpper().Contains("BOOLEAN"))
                         {
                             colstr = str.ToUpper().Replace("BOOLEAN", "BIT");
@@ -461,6 +476,10 @@ namespace Repositories
                         else if (str.ToUpper().Contains("DOUBLE"))
                         {
                             colstr = str.ToUpper().Replace("DOUBLE", "BIT");
+                        }
+                        else if (str.ToUpper().Contains("LONGTEXT"))
+                        {
+                            colstr = str.ToUpper().Replace("LONGTEXT", "VARBINARY(MAX)");
                         }
                         else
                         {
@@ -503,7 +522,11 @@ namespace Repositories
                     foreach (string str in arrlst)
                     {
                         strarr = str.Split(' ');
-                        if (str.ToUpper().Contains("TEXT"))
+                        if (str.ToUpper().Contains("MEDIUMBLOB"))
+                        {
+                            colstr = str.ToUpper().Replace("MEDIUMBLOB", "BLOB");
+                        }
+                        else if (str.ToUpper().Contains("TEXT"))
                         {
                             colstr = str.ToUpper().Replace("TEXT", "CLOB");
                         }
@@ -530,6 +553,10 @@ namespace Repositories
                         else if (string.Compare(strarr[1].ToUpper(), "DOUBLE") == 0)
                         {
                             colstr = str.ToUpper().Replace("DOUBLE", "BINARY_DOUBLE");
+                        }
+                        else if (str.ToUpper().Contains("LONGTEXT"))
+                        {
+                            colstr = str.ToUpper().Replace("LONGTEXT", "CLOB");
                         }
                         else
                         {
