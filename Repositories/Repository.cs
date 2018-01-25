@@ -12,7 +12,7 @@ using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
-
+using System.Web;
 
 namespace Repositories
 {
@@ -440,6 +440,44 @@ namespace Repositories
                 retstr = "";
             }
             return retstr;
+        }
+        public static void textLog(string strlog)
+        {
+            try
+            {
+                //string path = HostingEnvironment.ApplicationHost.GetPhysicalPath();
+                string pathfile = System.Web.HttpContext.Current.Server.MapPath("~/log.txt");
+                // This text is added only once to the file.
+                if (!File.Exists(pathfile))
+                {
+                    // Create a file to write to.
+                    using (StreamWriter sw = File.CreateText(pathfile))
+                    {
+                        sw.WriteLine(strlog);
+
+                    }
+                }
+                else
+                {
+                    using (StreamWriter sw = File.AppendText(pathfile))
+                    {
+                        sw.WriteLine(strlog);
+
+                    }
+
+                }
+
+                // This text is always added, making the file longer over time
+                // if it is not deleted.
+
+
+            }
+            catch (Exception ex)
+            {
+
+            }
+
+
         }
         public static string getCreateQuery(ArrayList arrlst, string tablename)
         {
@@ -1158,9 +1196,15 @@ namespace Repositories
         public static bool executeQuery(string query, DbConnection conn = null, DbTransaction trans = null)
         {
             bool retval = false;
+            bool tocloseconn = false;
+            if (conn == null)
+            {
+                conn = Repository.getConnection();
+                tocloseconn = true;
+            }
             if (ismssql == 1)
             {
-
+                
                 using (SqlCommand cmd = new SqlCommand(query))
                 {
 
@@ -1207,6 +1251,13 @@ namespace Repositories
             else
             {
                 throw new Exception("Please set value for the key DBTYPE in web.config appsetting section");
+            }
+            if(tocloseconn)
+            {
+                if(conn!=null && conn.State==ConnectionState.Open)
+                {
+                    conn.Close();
+                }
             }
             return retval;
 
@@ -1435,6 +1486,16 @@ namespace Repositories
             }
             return retstr;
         }
+        public static string getColIntVal(string colname, string colval, string table, string retcol, DbConnection conn = null, DbTransaction trans = null)
+        {
+            string retval = string.Empty;
+            DataTable dt = getTable("Select " + retcol + " from " + table + " where " + colname + "=" + colval, table, conn, trans);
+            if (dt.Rows.Count > 0)
+            {
+                retval = getString(dt.Rows[0][retcol]);
+            }
+            return retval;
+        }
         public static string getColVal(string colname, string colval, string table, string retcol, DbConnection conn = null, DbTransaction trans = null)
         {
             string retval = string.Empty;
@@ -1480,6 +1541,20 @@ namespace Repositories
                 retval = getString(dt.Rows[0]["maxval"]);
             }
             return retval;
+        }
+        public static string filterQuertStr(string str)
+        {
+            string retstr = string.Empty;
+            retstr = str.Replace("~~", ".");
+            retstr = retstr.Replace("'", "&#39;");
+            return retstr;
+        }
+        public static byte[] ConvertToBytes(HttpPostedFileBase image)
+        {
+            byte[] imageBytes = null;
+            BinaryReader reader = new BinaryReader(image.InputStream);
+            imageBytes = reader.ReadBytes((int)image.ContentLength);
+            return imageBytes;
         }
         #endregion
 
