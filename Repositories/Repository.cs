@@ -1404,13 +1404,32 @@ namespace Repositories
             }
             return retval;
         }
+        public static DateTime getDate(object val)
+        {
+            DateTime retval =new DateTime();
+            try
+            {
+                if (val != DBNull.Value)
+                {
+                      retval =Convert.ToDateTime(val) ;
+                    
+                }
+            }
+            catch (Exception)
+            {
+            }
+            return retval;
+        }
         public enum Mode
         {
             AlphaNumeric = 1,
             Alpha = 2,
             Numeric = 3
         }
-
+        public static string IncrementInt(string strToIncrement)
+        {
+            return Repository.getString(Convert.ToInt32(strToIncrement) + 1);
+        }
         public static string IncrementStr(string strToIncrement, Mode mode)
         {
             var textArr = strToIncrement.ToCharArray();
@@ -1556,6 +1575,33 @@ namespace Repositories
             imageBytes = reader.ReadBytes((int)image.ContentLength);
             return imageBytes;
         }
+        public static int RandomNumber(int min, int max)
+        {
+            Random random = new Random();
+            return random.Next(min, max);
+        }
+        public static string RandomString(int size, bool lowerCase)
+        {
+            StringBuilder builder = new StringBuilder();
+            Random random = new Random();
+            char ch;
+            for (int i = 0; i < size; i++)
+            {
+                ch = Convert.ToChar(Convert.ToInt32(Math.Floor(26 * random.NextDouble() + 65)));
+                builder.Append(ch);
+            }
+            if (lowerCase)
+                return builder.ToString().ToLower();
+            return builder.ToString();
+        }
+        public static string RandomPassword()
+        {
+            StringBuilder builder = new StringBuilder();
+            builder.Append(RandomString(4, true));
+            builder.Append(RandomNumber(1000, 9999));
+            builder.Append(RandomString(2, false));
+            return builder.ToString();
+        }
         #endregion
 
         #region EncryptionDecryption
@@ -1601,6 +1647,82 @@ namespace Repositories
                 }
             }
             return strToDecrypt;
+        }
+        public static string EncryptKey(string strToEncrypt)
+        {
+            string EncryptionKey = "WORK2017FOR2018PASSION2030";
+            byte[] clearBytes = Encoding.Unicode.GetBytes(strToEncrypt);
+            using (Aes encryptor = Aes.Create())
+            {
+                Rfc2898DeriveBytes pdb = new Rfc2898DeriveBytes(EncryptionKey, new byte[] { 0x49, 0x76, 0x61, 0x6e, 0x20, 0x4d, 0x65, 0x64, 0x76, 0x65, 0x64, 0x65, 0x76 });
+                encryptor.Key = pdb.GetBytes(32);
+                encryptor.IV = pdb.GetBytes(16);
+                using (MemoryStream ms = new MemoryStream())
+                {
+                    using (CryptoStream cs = new CryptoStream(ms, encryptor.CreateEncryptor(), CryptoStreamMode.Write))
+                    {
+                        cs.Write(clearBytes, 0, clearBytes.Length);
+                        cs.Close();
+                    }
+                    strToEncrypt = Convert.ToBase64String(ms.ToArray());
+                }
+            }
+            return strToEncrypt;
+        }
+
+        public static string DecryptKey(string strToDecrypt)
+        {
+            string EncryptionKey = "WORK2017FOR2018PASSION2030";
+            byte[] cipherBytes = Convert.FromBase64String(strToDecrypt);
+            using (Aes encryptor = Aes.Create())
+            {
+                Rfc2898DeriveBytes pdb = new Rfc2898DeriveBytes(EncryptionKey, new byte[] { 0x49, 0x76, 0x61, 0x6e, 0x20, 0x4d, 0x65, 0x64, 0x76, 0x65, 0x64, 0x65, 0x76 });
+                encryptor.Key = pdb.GetBytes(32);
+                encryptor.IV = pdb.GetBytes(16);
+                using (MemoryStream ms = new MemoryStream())
+                {
+                    using (CryptoStream cs = new CryptoStream(ms, encryptor.CreateDecryptor(), CryptoStreamMode.Write))
+                    {
+                        cs.Write(cipherBytes, 0, cipherBytes.Length);
+                        cs.Close();
+                    }
+                    strToDecrypt = Encoding.Unicode.GetString(ms.ToArray());
+                }
+            }
+            return strToDecrypt;
+        }
+        public static string GeneratKey(DateTime from,DateTime to)
+        {
+            string keystring = string.Empty;
+            try
+            {
+                string datefrom = from.ToString("yyyy-MM-dd")+" 00:00";
+                string dateto = to.ToString("yyyy-MM-dd")+" 23:59";
+                keystring = EncryptKey(datefrom + "~" + to);
+            }
+            catch (Exception ex)
+            {
+              //  throw ex;
+            }
+            return keystring;
+        }
+        public static bool DeGeneratKey(string keystring,ref DateTime from,ref DateTime to)
+        {
+            string Decryptstr = "";
+            bool retval = false;
+            try
+            {
+                Decryptstr = DecryptKey(keystring);
+                string[] arrkeystr = Decryptstr.Split('~');
+                from = Convert.ToDateTime(arrkeystr[0]);
+                to = Convert.ToDateTime(arrkeystr[1]);
+                retval=true;
+            }
+            catch (Exception ex)
+            {
+                retval = true;
+            }
+            return retval;
         }
         #endregion
 
