@@ -945,7 +945,6 @@ namespace Repositories
             bool closeconn = false;
             string query = string.Empty;
             string whcl = string.Empty;
-            string orderby = string.Empty;
             DataTable dt = new DataTable(Tablename);
             if (Conn == null)
             {
@@ -970,7 +969,7 @@ namespace Repositories
             }
             if (ismssql == 1)
             {
-                query = "Select "+cols+" from "+Tablename+" "+whcl+" "+orderby+"  OFFSET "+Convert.ToString(offset)+" ROWS FETCH NEXT "+Convert.ToString(limit)+"  ROWS ONLY";
+                query = "Select "+cols+" from "+Tablename+" "+whcl+" "+ order_by + "  OFFSET "+Convert.ToString(offset)+" ROWS FETCH NEXT "+Convert.ToString(limit)+"  ROWS ONLY";
                 using (SqlCommand cmd = new SqlCommand(query))
                 {
                     cmd.Connection = (SqlConnection)Conn;
@@ -987,7 +986,7 @@ namespace Repositories
             }
             else if (ismssql == 2)
             {
-                query = "Select "+cols+" from " + Tablename + " " + whcl + " "+orderby+" LIMIT " + Convert.ToString(limit) + " OFFSET " + Convert.ToString(offset); ;
+                query = "Select "+cols+" from " + Tablename + " " + whcl + " "+ order_by + " LIMIT " + Convert.ToString(limit) + " OFFSET " + Convert.ToString(offset); ;
                 using (MySqlCommand cmd = new MySqlCommand(query))
                 {
                     cmd.Connection = (MySqlConnection)Conn;
@@ -1005,7 +1004,7 @@ namespace Repositories
             }
             else if (ismssql == 3)
             {
-                query = "SELECT "+cols+" FROM   (SELECT "+cols+" FROM (SELECT "+cols+" FROM DB_POST "+ whcl+ " " +orderby+") WHERE rownum <= "+Convert.ToString(limit)+") WHERE  rownum >"+Convert.ToString(offset);
+                query = "SELECT "+cols+" FROM   (SELECT "+cols+" FROM (SELECT "+cols+" FROM DB_POST "+ whcl+ " " + order_by + ") WHERE rownum <= "+Convert.ToString(limit)+") WHERE  rownum >"+Convert.ToString(offset);
                 using (OracleCommand cmd = new OracleCommand(query))
                 {
                     cmd.Connection = (OracleConnection)Conn;
