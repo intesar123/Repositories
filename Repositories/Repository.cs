@@ -7,6 +7,7 @@ using System.Configuration;
 using System.Data;
 using System.Data.Common;
 using System.Data.SqlClient;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
@@ -269,11 +270,8 @@ namespace Repositories
                         if (schemastr.Length > 0)
                         {
 
-                            if (Convert.ToString(arrlst[i]).ToUpper().Contains("TEXT"))
-                            {
-                                collstr = Convert.ToString(arrlst[i]).ToUpper().Replace("TEXT", "CLOB");
-                            }
-                            else if (Convert.ToString(arrlst[i]).ToUpper().Contains("DATETIME"))
+                            
+                            if (Convert.ToString(arrlst[i]).ToUpper().Contains("DATETIME"))
                             {
                                 collstr = Convert.ToString(arrlst[i]).ToUpper().Replace("DATETIME", "TIMESTAMP");
                             }
@@ -309,6 +307,10 @@ namespace Repositories
                             {
                                 collstr = Convert.ToString(arrlst[i]).ToUpper().Replace("LONGTEXT", "CLOB");
                                 // arrlst[i] = collstr;
+                            }
+                            else if (Convert.ToString(arrlst[i]).ToUpper().Contains("TEXT"))
+                            {
+                                collstr = Convert.ToString(arrlst[i]).ToUpper().Replace("TEXT", "CLOB");
                             }
                             else
                             {
@@ -564,10 +566,6 @@ namespace Repositories
                         {
                             colstr = str.ToUpper().Replace("MEDIUMBLOB", "BLOB");
                         }
-                        else if (str.ToUpper().Contains("TEXT"))
-                        {
-                            colstr = str.ToUpper().Replace("TEXT", "CLOB");
-                        }
                         else if (str.ToUpper().Contains("DATETIME"))
                         {
                             colstr = str.ToUpper().Replace("DATETIME", "TIMESTAMP");
@@ -595,6 +593,10 @@ namespace Repositories
                         else if (str.ToUpper().Contains("LONGTEXT"))
                         {
                             colstr = str.ToUpper().Replace("LONGTEXT", "CLOB");
+                        }
+                        else if (str.ToUpper().Contains("TEXT"))
+                        {
+                            colstr = str.ToUpper().Replace("TEXT", "CLOB");
                         }
                         else
                         {
@@ -938,6 +940,96 @@ namespace Repositories
             }
             return dt;
         }
+        public static DataTable getTableWithLimitOffset(string Tablename, string cols = "", int offset = 0, int limit = 0,string where="", string order_by = "",bool isdesc=false, DbConnection Conn = null, DbTransaction Trans = null, string ConnName = "")
+        {
+            bool closeconn = false;
+            string query = string.Empty;
+            string whcl = string.Empty;
+            string orderby = string.Empty;
+            DataTable dt = new DataTable(Tablename);
+            if (Conn == null)
+            {
+                Conn = Repository.getConnection(ConnName);
+                closeconn = true;
+            }
+            if(cols.Length==0)
+            {
+                cols = "*";
+            }
+            if(order_by.Length!=0)
+            {
+                order_by = "order by " + order_by;
+                if(isdesc)
+                {
+                    order_by += " desc";
+                }
+            }
+            if(where.Length!=0)
+            {
+                whcl = " where " + where;
+            }
+            if (ismssql == 1)
+            {
+                query = "Select "+cols+" from "+Tablename+" "+whcl+" "+orderby+"  OFFSET "+Convert.ToString(offset)+" ROWS FETCH NEXT "+Convert.ToString(limit)+"  ROWS ONLY";
+                using (SqlCommand cmd = new SqlCommand(query))
+                {
+                    cmd.Connection = (SqlConnection)Conn;
+                    cmd.Transaction = (SqlTransaction)Trans;
+                    using (SqlDataAdapter sda = new SqlDataAdapter())
+                    {
+                        sda.SelectCommand = cmd;
+                        using (dt)
+                        {
+                            sda.Fill(dt);
+                        }
+                    }
+                }
+            }
+            else if (ismssql == 2)
+            {
+                query = "Select "+cols+" from " + Tablename + " " + whcl + " "+orderby+" LIMIT " + Convert.ToString(limit) + " OFFSET " + Convert.ToString(offset); ;
+                using (MySqlCommand cmd = new MySqlCommand(query))
+                {
+                    cmd.Connection = (MySqlConnection)Conn;
+                    cmd.Transaction = (MySqlTransaction)Trans;
+                    using (MySqlDataAdapter sda = new MySqlDataAdapter())
+                    {
+                        sda.SelectCommand = cmd;
+                        using (dt)
+                        {
+                            sda.Fill(dt);
+                        }
+                    }
+
+                }
+            }
+            else if (ismssql == 3)
+            {
+                query = "SELECT "+cols+" FROM   (SELECT "+cols+" FROM (SELECT "+cols+" FROM DB_POST "+ whcl+ " " +orderby+") WHERE rownum <= "+Convert.ToString(limit)+") WHERE  rownum >"+Convert.ToString(offset);
+                using (OracleCommand cmd = new OracleCommand(query))
+                {
+                    cmd.Connection = (OracleConnection)Conn;
+                    cmd.Transaction = (OracleTransaction)Trans;
+                    using (OracleDataAdapter sda = new OracleDataAdapter())
+                    {
+                        sda.SelectCommand = cmd;
+                        using (dt)
+                        {
+                            sda.Fill(dt);
+                        }
+                    }
+
+                }
+            }
+            if (closeconn)
+            {
+                if (Conn != null && ConnectionState.Open == Conn.State)
+                {
+                    Conn.Close();
+                }
+            }
+            return dt;
+        }
         public static bool updateTableData(Hashtable ht, string tablename, bool isforupdate, string whereclse = "", DbConnection conn = null, DbTransaction trans = null)
         {
             string retstring = string.Empty;
@@ -1110,6 +1202,7 @@ namespace Repositories
             }
             else if (ismssql == 3)
             {
+                Repository.executeQuery("alter session set nls_date_format = 'DD/MM/YYYY HH24:MI:SS'",conn,trans);
                 if (isforupdate)
                 {
                     retstring = "Update " + tablename + " set ";
@@ -1192,6 +1285,11 @@ namespace Repositories
             }
             return retval;
 
+        }
+        public static DateTime getDateNow()
+        {
+            DateTime dtime = Convert.ToDateTime(DateTime.Now.ToString("dd/MM/yyyy HH:mm:ss"));
+            return dtime;
         }
         public static bool executeQuery(string query, DbConnection conn = null, DbTransaction trans = null)
         {
@@ -1550,7 +1648,7 @@ namespace Repositories
             {
                 dt = getTable("Select max(" + colname + ") maxval from " + table, table, conn, trans);
             }
-            else if (ismssql == 1)
+            else if (ismssql == 3)
             {
                 dt = getTable("Select max(" + colname + ") maxval from " + table, table, conn, trans);
             }
