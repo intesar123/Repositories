@@ -211,6 +211,14 @@ namespace Repositories
                         else
                         {
                             coltype = " " + Convert.ToString(dr["Type"]).Trim().ToUpper();
+                          
+                            if (coltype.ToUpper().Contains("NVARCHAR"))
+                            {
+                                string tempstr = coltype;
+                                tempstr.Replace("NVARCHAR", "VARCHAR");
+                                tempstr = tempstr + " CHARSET utf8";
+                                coltype = tempstr;
+                            }
                         }
                         if (schemastr.Length > 0)
                         {
@@ -543,15 +551,33 @@ namespace Repositories
                 {
                     foreach (string str in arrlst)
                     {
-
-                        ///////////////////////////////////////
-                        if (arrlst.Count == i)
+                        strarr = str.Split(' ');
+                       
+                        if (strarr[1].ToUpper().Contains("NVARCHAR"))
                         {
-                            retstr += str;
+                            string tempstr = strarr[1].ToUpper();
+                            tempstr.Replace("NVARCHAR", "VARCHAR");
+                            tempstr = tempstr + " CHARSET utf8";
+                            strarr[1] = tempstr;
+                            tempstr = "";
+                            for (int j=0;j<strarr.Length;j++)
+                            {
+                                tempstr += strarr[i];
+                            }
+                            colstr = tempstr;
                         }
                         else
                         {
-                            retstr += str + ",";
+                            colstr = str;
+                        }
+                        ///////////////////////////////////////
+                        if (arrlst.Count == i)
+                        {
+                            retstr += colstr;
+                        }
+                        else
+                        {
+                            retstr += colstr + ",";
                         }
 
                         i++;
@@ -1287,7 +1313,20 @@ namespace Repositories
         }
         public static DateTime getDateNow()
         {
-            DateTime dtime = Convert.ToDateTime(DateTime.Now.ToString("dd/MM/yyyy HH:mm:ss"));
+            DateTime dtime = DateTime.Now;
+            if (Repository.ismssql==1)
+            {
+                dtime = Convert.ToDateTime(DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
+            }
+            else if(Repository.ismssql == 2)
+            {
+                dtime = Convert.ToDateTime(DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")); 
+            }
+            else if (Repository.ismssql == 3)
+            {
+                dtime = Convert.ToDateTime(DateTime.Now.ToString("dd/MM/yyyy HH:mm:ss"));
+            }
+            
             return dtime;
         }
         public static bool executeQuery(string query, DbConnection conn = null, DbTransaction trans = null)
@@ -1447,7 +1486,7 @@ namespace Repositories
         }
         #endregion
         #region Conversion Section
-        public static int getInt(string val)
+        public static int getInt(Object val)
         {
             int retval = 0;
             try
@@ -1459,7 +1498,7 @@ namespace Repositories
             }
             return retval;
         }
-        public static double getDouble(string val)
+        public static double getDouble(Object val)
         {
             double retval = 0;
             try
