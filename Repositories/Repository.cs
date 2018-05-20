@@ -1124,7 +1124,7 @@ namespace Repositories
                         i++;
                     }
                     retstring += colstr + ") values(" + colval + ")";
-
+ 
                     using (SqlCommand cmd = new SqlCommand(retstring))
                     {
                         foreach (string key in ht.Keys)
@@ -1694,6 +1694,37 @@ namespace Repositories
             if (dt.Rows.Count > 0)
             {
                 retval = getString(dt.Rows[0]["maxval"]);
+            }
+            return retval;
+        }
+        public static string getNextCode(string colname,string prechars, string table, DbConnection conn = null, DbTransaction trans = null)
+        {
+            string retval = string.Empty;
+            DataTable dt = new DataTable();
+            if (ismssql == 1)
+            {
+                dt = getTable("Select max(" + colname + ") maxval from " + table, table, conn, trans);
+            }
+            else if (ismssql == 2)
+            {
+                dt = getTable("Select max(" + colname + ") maxval from " + table, table, conn, trans);
+            }
+            else if (ismssql == 3)
+            {
+                dt = getTable("Select max(" + colname + ") maxval from " + table, table, conn, trans);
+            }
+
+            if (dt.Rows.Count > 0)
+            {
+                retval = getString(dt.Rows[0]["maxval"]);
+            }
+            if(retval.Length>0)
+            {
+                retval=Repository.IncrementStr(retval,Mode.AlphaNumeric);
+            }
+            else
+            {
+                retval = prechars + "000001";
             }
             return retval;
         }

@@ -2,6 +2,6 @@ C:\Users\intesarAlam\Documents\GitHub\Repositories\Repositories\bin\Debug\Reposi
 C:\Users\intesarAlam\Documents\GitHub\Repositories\Repositories\bin\Debug\Repositories.pdb
 C:\Users\intesarAlam\Documents\GitHub\Repositories\Repositories\bin\Debug\MySql.Data.dll
 C:\Users\intesarAlam\Documents\GitHub\Repositories\Repositories\bin\Debug\Oracle.ManagedDataAccess.dll
-C:\Users\intesarAlam\Documents\GitHub\Repositories\Repositories\obj\Debug\Repositories.csprojResolveAssemblyReference.cache
 C:\Users\intesarAlam\Documents\GitHub\Repositories\Repositories\obj\Debug\Repositories.dll
 C:\Users\intesarAlam\Documents\GitHub\Repositories\Repositories\obj\Debug\Repositories.pdb
+C:\Users\intesarAlam\Documents\GitHub\Repositories\Repositories\obj\Debug\Repositories.csprojResolveAssemblyReference.cache
