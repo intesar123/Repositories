@@ -1314,17 +1314,18 @@ namespace Repositories
         public static DateTime getDateNow()
         {
             DateTime dtime = DateTime.Now;
+            CultureInfo provider = CultureInfo.InvariantCulture;
             if (Repository.ismssql==1)
             {
-                dtime = Convert.ToDateTime(DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
+                dtime = Convert.ToDateTime(DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss", provider));
             }
             else if(Repository.ismssql == 2)
             {
-                dtime = Convert.ToDateTime(DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")); 
+                dtime = Convert.ToDateTime(DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss", provider)); 
             }
             else if (Repository.ismssql == 3)
             {
-                dtime = Convert.ToDateTime(DateTime.Now.ToString("dd/MM/yyyy HH:mm:ss"));
+                dtime = Convert.ToDateTime(DateTime.Now.ToString("dd/MM/yyyy HH:mm:ss", provider));
             }
             
             return dtime;
@@ -1697,37 +1698,7 @@ namespace Repositories
             }
             return retval;
         }
-        public static string getNextCode(string colname,string prechars, string table, DbConnection conn = null, DbTransaction trans = null)
-        {
-            string retval = string.Empty;
-            DataTable dt = new DataTable();
-            if (ismssql == 1)
-            {
-                dt = getTable("Select max(" + colname + ") maxval from " + table, table, conn, trans);
-            }
-            else if (ismssql == 2)
-            {
-                dt = getTable("Select max(" + colname + ") maxval from " + table, table, conn, trans);
-            }
-            else if (ismssql == 3)
-            {
-                dt = getTable("Select max(" + colname + ") maxval from " + table, table, conn, trans);
-            }
-
-            if (dt.Rows.Count > 0)
-            {
-                retval = getString(dt.Rows[0]["maxval"]);
-            }
-            if(retval.Length>0)
-            {
-                retval=Repository.IncrementStr(retval,Mode.AlphaNumeric);
-            }
-            else
-            {
-                retval = prechars + "000001";
-            }
-            return retval;
-        }
+       
         public static string filterQuertStr(string str)
         {
             string retstr = string.Empty;
@@ -1769,6 +1740,7 @@ namespace Repositories
             builder.Append(RandomString(2, false));
             return builder.ToString();
         }
+        
         #endregion
 
         #region EncryptionDecryption
@@ -1893,6 +1865,32 @@ namespace Repositories
         }
         #endregion
 
+    }
+
+    public class GeneralizedClass<T>
+    {
+        public static List<T> getTabList(string tablename, string whereclse,DbConnection conn=null,DbTransaction trans=null)
+        {
+            if(Repository.getStrLen(whereclse)>0)
+            {
+                whereclse = " where " + whereclse;
+            }
+            DataTable dt = Repository.getTable("Select * from "+tablename+" "+ whereclse, tablename,conn,trans);
+            List<T> lst = new List<T>();
+            T clsobj = default(T);
+            foreach (DataRow d in dt.Rows)
+            {
+                clsobj = (T)Activator.CreateInstance(typeof(T));
+                // clsobj = default(T);
+                foreach (var prop in clsobj.GetType().GetProperties())
+                {
+                    prop.SetValue(clsobj, d[prop.Name]);
+                }
+                lst.Add(clsobj);
+            }
+
+            return lst;
+        }
     }
 
 
