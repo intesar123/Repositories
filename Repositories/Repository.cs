@@ -1891,16 +1891,34 @@ namespace Repositories
 
             return lst;
         }
+        public static T getTabRowData(string tablename, string whereclse = "", DbConnection conn = null, DbTransaction trans = null)
+        {
+            if (Repository.getStrLen(whereclse) > 0)
+            {
+                whereclse = " where " + whereclse;
+            }
+            DataTable dt = Repository.getTable("Select * from " + tablename + " " + whereclse, tablename, conn, trans);
+            T clsobj = clsobj = (T)Activator.CreateInstance(typeof(T));
+            if(dt.Rows.Count>0)
+            { 
+                foreach (var prop in clsobj.GetType().GetProperties())
+                {
+                    prop.SetValue(clsobj, dt.Rows[0][prop.Name]);
+                }
+            }
+            return clsobj;
+        }
         public static void UpdateTable(T obj,string tablename,string whereclse="",bool isUpdate=false,DbConnection conn=null,DbTransaction trans=null)
         {
             Hashtable ht = new Hashtable();
             foreach (var prop in obj.GetType().GetProperties())
             {
                 ht.Add(prop.Name, prop.GetValue(obj, prop.GetIndexParameters()));
-
             }
             Repository.updateTableData(ht, tablename, isUpdate, whereclse, conn, trans);
         }
+
+
     }
 
 
