@@ -1869,7 +1869,7 @@ namespace Repositories
 
     public class GeneralizedList<T>
     {
-        public static List<T> getTabList(string tablename, string whereclse,DbConnection conn=null,DbTransaction trans=null)
+        public static List<T> getTabList(string tablename, string whereclse="",DbConnection conn=null,DbTransaction trans=null)
         {
             if(Repository.getStrLen(whereclse)>0)
             {
@@ -1881,7 +1881,7 @@ namespace Repositories
             foreach (DataRow d in dt.Rows)
             {
                 clsobj = (T)Activator.CreateInstance(typeof(T));
-                // clsobj = default(T);
+                
                 foreach (var prop in clsobj.GetType().GetProperties())
                 {
                     prop.SetValue(clsobj, d[prop.Name]);
