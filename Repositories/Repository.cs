@@ -1891,6 +1891,16 @@ namespace Repositories
 
             return lst;
         }
+        public static void UpdateTable(T obj,string tablename,string whereclse="",bool isUpdate=false,DbConnection conn=null,DbTransaction trans=null)
+        {
+            Hashtable ht = new Hashtable();
+            foreach (var prop in obj.GetType().GetProperties())
+            {
+                ht.Add(prop.Name, prop.GetValue(obj, prop.GetIndexParameters()));
+
+            }
+            Repository.updateTableData(ht, tablename, isUpdate, whereclse, conn, trans);
+        }
     }
 
 
