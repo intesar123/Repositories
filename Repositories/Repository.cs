@@ -1867,7 +1867,7 @@ namespace Repositories
 
     }
 
-    public class GeneralizedClass<T>
+    public class GeneralizedList<T>
     {
         public static List<T> getTabList(string tablename, string whereclse,DbConnection conn=null,DbTransaction trans=null)
         {
