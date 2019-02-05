@@ -5,3 +5,12 @@ C:\Users\intesarAlam\Documents\GitHub\Repositories\Repositories\bin\Debug\Oracle
 C:\Users\intesarAlam\Documents\GitHub\Repositories\Repositories\obj\Debug\Repositories.dll
 C:\Users\intesarAlam\Documents\GitHub\Repositories\Repositories\obj\Debug\Repositories.pdb
 C:\Users\intesarAlam\Documents\GitHub\Repositories\Repositories\obj\Debug\Repositories.csprojResolveAssemblyReference.cache
+E:\myGit\Repositories\Repositories\bin\Debug\Repositories.dll
+E:\myGit\Repositories\Repositories\bin\Debug\Repositories.pdb
+E:\myGit\Repositories\Repositories\bin\Debug\MySql.Data.dll
+E:\myGit\Repositories\Repositories\bin\Debug\Oracle.ManagedDataAccess.dll
+E:\myGit\Repositories\Repositories\obj\Debug\Repositories.csprojAssemblyReference.cache
+E:\myGit\Repositories\Repositories\obj\Debug\Repositories.csproj.CoreCompileInputs.cache
+E:\myGit\Repositories\Repositories\obj\Debug\Repositories.csproj.CopyComplete
+E:\myGit\Repositories\Repositories\obj\Debug\Repositories.dll
+E:\myGit\Repositories\Repositories\obj\Debug\Repositories.pdb
